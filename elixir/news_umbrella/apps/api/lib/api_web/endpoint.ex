@@ -15,6 +15,9 @@ defmodule ApiWeb.Endpoint do
     websocket: [connect_info: [session: @session_options]],
     longpoll: [connect_info: [session: @session_options]]
 
+  plug Plug.RequestId
+  plug ApiWeb.Plugs.UploadAuditLog
+
   # Serve at "/" the static files from "priv/static" directory.
   #
   # When code reloading is disabled (e.g., in production),
@@ -27,6 +30,12 @@ defmodule ApiWeb.Endpoint do
     only: ApiWeb.static_paths(),
     raise_on_missing_only: code_reloading?
 
+  plug Plug.Static,
+    at: "/uploads",
+    from: "/workspace_public/uploads",
+    gzip: false,
+    only: ~w(news)
+
   # Code reloading can be explicitly enabled under the
   # :code_reloader configuration of your endpoint.
   if code_reloading? do
@@ -36,7 +45,6 @@ defmodule ApiWeb.Endpoint do
     plug Phoenix.Ecto.CheckRepoStatus, otp_app: :api
   end
 
-  plug Plug.RequestId
   plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint]
 
   plug Plug.Parsers,

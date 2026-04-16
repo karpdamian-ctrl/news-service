@@ -17,6 +17,9 @@ config :api,
   ecto_repos: [Core.Repo],
   generators: [context_app: :core]
 
+config :api,
+  access_token: "news_hV7mQ2zN8pL4xR1kT9cY6sD3wF5bJ0"
+
 config :core, :integrations,
   redis_url: System.get_env("REDIS_URL", "redis://localhost:6379"),
   rabbitmq_url: System.get_env("RABBITMQ_URL", "amqp://news:news@localhost:5672"),

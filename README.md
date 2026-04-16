@@ -39,6 +39,8 @@ Zatrzymanie + usunięcie wolumenów (reset danych):
 docker compose down -v
 ```
 
+Uwaga: `down -v` usuwa też dane Elasticsearch/Kibana (dashboardy, saved searches, data views).
+
 Usunięcie osieroconych kontenerów po zmianie nazw serwisów:
 ```bash
 docker compose down --remove-orphans
@@ -68,17 +70,34 @@ docker compose logs -f filebeat
 - Symfony: http://localhost:8080
 - Symfony login: http://localhost:8080/login
 - EasyAdmin: http://localhost:8080/admin
+- Symfony Profiler: http://localhost:8080/_profiler/
 - Phoenix: http://localhost:4000
+- Elixir API: http://localhost:4000/api/v1
 - Redis Commander: http://localhost:8081
 - RabbitMQ Management: http://localhost:15672
 - Kibana: http://localhost:5601
 - Elasticsearch API: http://localhost:9200
+
+Trwałość ustawień Kibany:
+- dashboardy i zapisane wyszukiwania są przechowywane w Elasticsearch (indeks `.kibana*`)
+- dodatkowo stan Kibany jest trzymany w wolumenie `kibana_data`
+- rekreacja kontenerów (`up --force-recreate`) nie usuwa tych danych
+- dane znikną dopiero po `docker compose down -v` lub ręcznym usunięciu wolumenów
+
+## Dane aplikacji
+
+Aktualnie source of truth dla danych newsowych jest po stronie Elixira (`apps/core` + `Core.Repo`).
+API CRUD dla encji jest wystawione w Phoenix (`apps/api`) pod `/api/v1/*`.
+API nie ma już obsługi panelu admina/użytkowników; autoryzacja to prosty token.
 
 ## Loginy / hasła
 
 RabbitMQ Management:
 - login: `news`
 - hasło: `news`
+
+Elixir API token:
+- (trzymany w `elixir/news_umbrella/config/config.exs`): `news_hV7mQ2zN8pL4xR1kT9cY6sD3wF5bJ0`
 
 EasyAdmin (seed):
 - admin: `admin@news.local` / `admin123`
@@ -125,6 +144,11 @@ docker compose exec symfony composer phpstan
 docker compose exec symfony composer php-cs-fixer
 ```
 
+Symfony debug toolbar:
+- dziala w `APP_ENV=dev` (aktualnie ustawione w `docker-compose.yml`)
+- po wejsciu na dowolna strone Symfony na dole zobaczysz pasek debug
+- szczegoly requestu: `http://localhost:8080/_profiler/`
+
 ## Bazy danych
 
 Porty hosta:
@@ -154,10 +178,134 @@ Elixir (`core`):
 docker compose exec phoenix sh -lc 'cd apps/core && mix ecto.migrate'
 ```
 
+Pliki publiczne (media):
+- katalog na hostcie: `public/uploads/news/`
+- publiczny URL: `http://localhost:4000/uploads/news/<nazwa-pliku>`
+
+## API (Phoenix / JSON)
+
+Base URL:
+```bash
+http://localhost:4000/api/v1
+```
+
+Dostępne endpointy CRUD:
+- `GET/POST /api/v1/categories`
+- `GET/PUT/DELETE /api/v1/categories/:id`
+- `GET/POST /api/v1/tags`
+- `GET/PUT/DELETE /api/v1/tags/:id`
+- `GET/POST /api/v1/media`
+- `GET/PUT/DELETE /api/v1/media/:id`
+- `GET/POST /api/v1/articles`
+- `GET/PUT/DELETE /api/v1/articles/:id`
+- `GET/POST /api/v1/article-revisions`
+- `GET/PUT/DELETE /api/v1/article-revisions/:id`
+
+Autoryzacja:
+- nagłówek `Authorization: Bearer <token>` lub `x-api-token: <token>`
+- bez tokenu API zwraca `401 {"error":"unauthorized"}`
+
+Standardowe parametry listowania (`GET` na kolekcjach):
+- `page` (domyślnie `1`)
+- `per_page` (domyślnie `20`, max `100`)
+- `sort` (pole sortowania, zależne od zasobu)
+- `order` (`asc` lub `desc`)
+- `q` (wyszukiwanie tekstowe po polach danego zasobu)
+- `filter[field]=value` (filtrowanie po dozwolonych polach)
+
+Przykład:
+```bash
+curl -G http://localhost:4000/api/v1/articles \
+  -H "Authorization: Bearer news_hV7mQ2zN8pL4xR1kT9cY6sD3wF5bJ0" \
+  --data-urlencode "page=1" \
+  --data-urlencode "per_page=10" \
+  --data-urlencode "sort=published_at" \
+  --data-urlencode "order=desc" \
+  --data-urlencode "q=ai" \
+  --data-urlencode "filter[status]=published"
+```
+
+Każda lista zwraca:
+- `data` (rekordy)
+- `meta` (`page`, `per_page`, `total_count`, `total_pages`, `sort`, `order`, `has_prev_page`, `has_next_page`)
+
+Dozwolone pola `sort` / `filter`:
+- `categories`: sort `id,name,slug,inserted_at,updated_at`; filter `name,slug`
+- `tags`: sort `id,name,slug,inserted_at,updated_at`; filter `name,slug`
+- `media`: sort `id,type,path,size_bytes,inserted_at`; filter `type,mime_type,uploaded_by`
+- `articles`: sort `id,title,slug,status,published_at,view_count,inserted_at,updated_at`; filter `title,slug,status,author,is_breaking`
+- `article-revisions`: sort `id,title,article_id,changed_by,inserted_at`; filter `title,article_id,changed_by`
+
+Przykładowy flow:
+
+1. Utwórz kategorię:
+```bash
+curl -X POST http://localhost:4000/api/v1/categories \
+  -H "Authorization: Bearer news_hV7mQ2zN8pL4xR1kT9cY6sD3wF5bJ0" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Technology",
+    "slug": "technology",
+    "description": "Tech news"
+  }'
+```
+
+2. Utwórz tag:
+```bash
+curl -X POST http://localhost:4000/api/v1/tags \
+  -H "Authorization: Bearer news_hV7mQ2zN8pL4xR1kT9cY6sD3wF5bJ0" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "AI",
+    "slug": "ai"
+  }'
+```
+
+3. Utwórz artykuł (z relacjami):
+```bash
+curl -X POST http://localhost:4000/api/v1/articles \
+  -H "Authorization: Bearer news_hV7mQ2zN8pL4xR1kT9cY6sD3wF5bJ0" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Nowy model AI",
+    "slug": "nowy-model-ai",
+    "description": "Krótki opis",
+    "content": "Pełna treść artykułu",
+    "status": "published",
+    "published_at": "2026-04-16T12:00:00Z",
+    "author": "Jan Kowalski",
+    "category_ids": [1],
+    "tag_ids": [1],
+    "is_breaking": false
+  }'
+```
+
+4. Dodaj rewizję artykułu:
+```bash
+curl -X POST http://localhost:4000/api/v1/article-revisions \
+  -H "Authorization: Bearer news_hV7mQ2zN8pL4xR1kT9cY6sD3wF5bJ0" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "article_id": 1,
+    "changed_by": "Redakcja",
+    "title": "Nowy model AI",
+    "description": "Opis po korekcie",
+    "content": "Treść po korekcie",
+    "change_note": "Korekta redakcyjna"
+  }'
+```
+
+5. Pobieranie listy:
+```bash
+curl -H "Authorization: Bearer news_hV7mQ2zN8pL4xR1kT9cY6sD3wF5bJ0" http://localhost:4000/api/v1/articles
+```
+
 ## Elasticsearch / Kibana logi
 
 - Filebeat wysyła logi kontenerów do indeksów `news-logs-*`.
 - W Kibanie utwórz Data View: `news-logs-*`.
+- Operacje API Elixira są logowane jako wpisy `API_AUDIT ...` (JSON w `message`).
+- Przykładowy filtr w Kibanie (KQL): `container.name : "news_phoenix" and message : "API_AUDIT"`.
 
 ## Struktura katalogów
 

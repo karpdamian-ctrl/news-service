@@ -8,3 +8,6 @@ services:
     environment:
       MIX_ENV: test
       POSTGRES_DB_TEST: news_elixir_test
+
+  filebeat:
+    profiles: ["observability"]

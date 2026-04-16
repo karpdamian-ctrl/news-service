@@ -12,6 +12,8 @@ defmodule ApiWeb.Router do
 
   pipeline :api do
     plug :accepts, ["json"]
+    plug ApiWeb.Plugs.ApiAuditLog
+    plug ApiWeb.Plugs.ApiTokenAuth
   end
 
   scope "/", ApiWeb do
@@ -20,8 +22,15 @@ defmodule ApiWeb.Router do
     get "/", PageController, :home
   end
 
-  # Other scopes may use custom stacks.
-  # scope "/api", ApiWeb do
-  #   pipe_through :api
-  # end
+  scope "/api", ApiWeb do
+    pipe_through :api
+
+    scope "/v1" do
+      resources "/categories", CategoryController, except: [:new, :edit]
+      resources "/tags", TagController, except: [:new, :edit]
+      resources "/media", MediaController, except: [:new, :edit]
+      resources "/articles", ArticleController, except: [:new, :edit]
+      resources "/article-revisions", ArticleRevisionController, except: [:new, :edit]
+    end
+  end
 end

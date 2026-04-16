@@ -35,4 +35,9 @@ defmodule ApiWeb.ConnCase do
     Core.DataCase.setup_sandbox(tags)
     {:ok, conn: Phoenix.ConnTest.build_conn()}
   end
+
+  def authenticated_conn(conn) do
+    token = Application.fetch_env!(:api, :access_token)
+    Plug.Conn.put_req_header(conn, "authorization", "Bearer #{token}")
+  end
 end

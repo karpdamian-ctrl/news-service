@@ -36,6 +36,7 @@ services:
     working_dir: /app
     volumes:
       - ./elixir/news_umbrella:/app
+      - ./public:/workspace_public
     ports:
       - "4000:4000"
     environment:
@@ -156,8 +157,13 @@ services:
     environment:
       ELASTICSEARCH_HOSTS: http://elasticsearch:9200
       XPACK_SECURITY_ENABLED: "false"
+      XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY: 8f9c3a2d6b1e4f7a9c0d3e6f1a2b5c8d
+      XPACK_REPORTING_ENCRYPTIONKEY: 1a7e3c9b5d2f8a4e6c0b3d9f2a5e7c1b
+      XPACK_SECURITY_ENCRYPTIONKEY: 3d8a1f6c9b2e5a7d4c0f8b1e6a3d9c2f
     ports:
       - "5601:5601"
+    volumes:
+      - kibana_data:/usr/share/kibana/data
     depends_on:
       elasticsearch:
         condition: service_healthy
@@ -183,3 +189,4 @@ volumes:
   redis_data:
   rabbitmq_data:
   elasticsearch_data:
+  kibana_data:
