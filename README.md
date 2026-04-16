@@ -170,6 +170,52 @@ docker compose exec phoenix mix dialyzer
 
 `mix test` pomija testy integracyjne (`@moduletag :integration`), a `mix test.integration` uruchamia tylko je.
 
+Elasticsearch (definicje + indeksowanie dokumentów):
+- definicje indeksów i mappingów: `elixir/news_umbrella/config/elastic_documents/*.exs` (jawnie importowane w `elixir/news_umbrella/config/elastic_documents.exs`)
+- osobne komendy per endpoint:
+
+```bash
+# wszystko naraz
+docker compose exec phoenix mix elastic.reset.all
+docker compose exec phoenix mix elastic.load.all
+docker compose exec phoenix mix elastic.reload.all
+
+# categories
+docker compose exec phoenix mix elastic.reset.categories
+docker compose exec phoenix mix elastic.load.categories
+docker compose exec phoenix mix elastic.reload.categories
+
+# tags
+docker compose exec phoenix mix elastic.reset.tags
+docker compose exec phoenix mix elastic.load.tags
+docker compose exec phoenix mix elastic.reload.tags
+
+# media
+docker compose exec phoenix mix elastic.reset.media
+docker compose exec phoenix mix elastic.load.media
+docker compose exec phoenix mix elastic.reload.media
+
+# articles
+docker compose exec phoenix mix elastic.reset.articles
+docker compose exec phoenix mix elastic.load.articles
+docker compose exec phoenix mix elastic.reload.articles
+
+# article-revisions
+docker compose exec phoenix mix elastic.reset.article_revisions
+docker compose exec phoenix mix elastic.load.article_revisions
+docker compose exec phoenix mix elastic.reload.article_revisions
+```
+
+Typowy flow:
+1. `elastic.reset.<resource>` - usuwa i tworzy indeks od nowa (settings + mappings)
+2. `elastic.load.<resource>` - ładuje dane z Postgresa do Elasticsearch
+3. `elastic.reload.<resource>` - krok 1 + krok 2 w jednej komendzie
+
+Automatyczna synchronizacja indeksów:
+- po `POST/PUT/DELETE` na API (`categories`, `tags`, `media`, `articles`) indeksy odświeżają się automatycznie
+- działa asynchronicznie przez event worker (nie blokuje requestu API)
+- synchronizacja jest inkrementalna (`upsert/delete` pojedynczych dokumentów + reindeks powiązanych artykułów/rewizji gdy to konieczne)
+
 Symfony debug toolbar:
 - dziala w `APP_ENV=dev` (aktualnie ustawione w `docker-compose.yml`)
 - po wejsciu na dowolna strone Symfony na dole zobaczysz pasek debug

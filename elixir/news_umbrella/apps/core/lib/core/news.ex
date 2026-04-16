@@ -25,12 +25,36 @@ defmodule Core.News do
   def get_category(id), do: Repo.get(Category, id)
   def get_category!(id), do: Repo.get!(Category, id)
 
-  def create_category(attrs), do: %Category{} |> Category.changeset(attrs) |> Repo.insert()
+  def create_category(attrs) do
+    %Category{}
+    |> Category.changeset(attrs)
+    |> Repo.insert()
+    |> tap_ok(fn category ->
+      publish({:upsert, :categories, category})
+    end)
+  end
 
-  def update_category(%Category{} = category, attrs),
-    do: category |> Category.changeset(attrs) |> Repo.update()
+  def update_category(%Category{} = category, attrs) do
+    impacted_article_ids = article_ids_for_category(category.id)
 
-  def delete_category(%Category{} = category), do: Repo.delete(category)
+    category
+    |> Category.changeset(attrs)
+    |> Repo.update()
+    |> tap_ok(fn updated_category ->
+      publish({:upsert, :categories, updated_category})
+      publish({:reindex_articles, impacted_article_ids})
+    end)
+  end
+
+  def delete_category(%Category{} = category) do
+    impacted_article_ids = article_ids_for_category(category.id)
+
+    Repo.delete(category)
+    |> tap_ok(fn _ ->
+      publish({:delete, :categories, category.id})
+      publish({:reindex_articles, impacted_article_ids})
+    end)
+  end
 
   # Tags
   def list_tags(params \\ %{}) do
@@ -46,11 +70,36 @@ defmodule Core.News do
   def get_tag(id), do: Repo.get(Tag, id)
   def get_tag!(id), do: Repo.get!(Tag, id)
 
-  def create_tag(attrs), do: %Tag{} |> Tag.changeset(attrs) |> Repo.insert()
+  def create_tag(attrs) do
+    %Tag{}
+    |> Tag.changeset(attrs)
+    |> Repo.insert()
+    |> tap_ok(fn tag ->
+      publish({:upsert, :tags, tag})
+    end)
+  end
 
-  def update_tag(%Tag{} = tag, attrs), do: tag |> Tag.changeset(attrs) |> Repo.update()
+  def update_tag(%Tag{} = tag, attrs) do
+    impacted_article_ids = article_ids_for_tag(tag.id)
 
-  def delete_tag(%Tag{} = tag), do: Repo.delete(tag)
+    tag
+    |> Tag.changeset(attrs)
+    |> Repo.update()
+    |> tap_ok(fn updated_tag ->
+      publish({:upsert, :tags, updated_tag})
+      publish({:reindex_articles, impacted_article_ids})
+    end)
+  end
+
+  def delete_tag(%Tag{} = tag) do
+    impacted_article_ids = article_ids_for_tag(tag.id)
+
+    Repo.delete(tag)
+    |> tap_ok(fn _ ->
+      publish({:delete, :tags, tag.id})
+      publish({:reindex_articles, impacted_article_ids})
+    end)
+  end
 
   # Media
   def list_media(params \\ %{}) do
@@ -66,11 +115,35 @@ defmodule Core.News do
   def get_media(id), do: Repo.get(Media, id)
   def get_media!(id), do: Repo.get!(Media, id)
 
-  def create_media(attrs), do: %Media{} |> Media.changeset(attrs) |> Repo.insert()
+  def create_media(attrs) do
+    %Media{}
+    |> Media.changeset(attrs)
+    |> Repo.insert()
+    |> tap_ok(fn media ->
+      publish({:upsert, :media, media})
+    end)
+  end
 
-  def update_media(%Media{} = media, attrs), do: media |> Media.changeset(attrs) |> Repo.update()
+  def update_media(%Media{} = media, attrs) do
+    media
+    |> Media.changeset(attrs)
+    |> Repo.update()
+    |> tap_ok(fn updated_media ->
+      publish({:upsert, :media, updated_media})
+    end)
+  end
 
-  def delete_media(%Media{} = media), do: Repo.delete(media)
+  def delete_media(%Media{} = media) do
+    impacted_article_ids = article_ids_for_featured_media(media.id)
+    impacted_revision_ids = article_revision_ids_for_featured_media(media.id)
+
+    Repo.delete(media)
+    |> tap_ok(fn _ ->
+      publish({:delete, :media, media.id})
+      publish({:reindex_articles, impacted_article_ids})
+      publish({:reindex_article_revisions, impacted_revision_ids})
+    end)
+  end
 
   # Articles
   def list_articles(params \\ %{}) do
@@ -103,6 +176,9 @@ defmodule Core.News do
     |> put_article_assocs(attrs)
     |> Repo.insert()
     |> maybe_preload_article()
+    |> tap_ok(fn article ->
+      publish({:upsert, :articles, article})
+    end)
   end
 
   def update_article(%Article{} = article, attrs) do
@@ -116,8 +192,11 @@ defmodule Core.News do
       |> Multi.update(:article, article |> Article.changeset(attrs) |> put_article_assocs(attrs))
       |> Repo.transaction()
       |> case do
-        {:ok, %{article: updated_article}} ->
-          {:ok, Repo.preload(updated_article, @article_preloads)}
+        {:ok, %{article: updated_article, revision: revision}} ->
+          updated_article = Repo.preload(updated_article, @article_preloads)
+          publish({:upsert, :article_revisions, revision})
+          publish({:upsert, :articles, updated_article})
+          {:ok, updated_article}
 
         {:error, :article, article_changeset, _changes_so_far} ->
           {:error, article_changeset}
@@ -134,7 +213,15 @@ defmodule Core.News do
     end
   end
 
-  def delete_article(%Article{} = article), do: Repo.delete(article)
+  def delete_article(%Article{} = article) do
+    revision_ids = article_revision_ids_for_article(article.id)
+
+    Repo.delete(article)
+    |> tap_ok(fn _ ->
+      publish({:delete, :articles, article.id})
+      publish({:reindex_article_revisions, revision_ids})
+    end)
+  end
 
   # Revisions
   def list_article_revisions(params \\ %{}) do
@@ -160,13 +247,30 @@ defmodule Core.News do
   def get_article_revision(id), do: Repo.get(ArticleRevision, id) |> maybe_preload([:article])
   def get_article_revision!(id), do: Repo.get!(ArticleRevision, id) |> Repo.preload([:article])
 
-  def create_article_revision(attrs),
-    do: %ArticleRevision{} |> ArticleRevision.changeset(attrs) |> Repo.insert()
+  def create_article_revision(attrs) do
+    %ArticleRevision{}
+    |> ArticleRevision.changeset(attrs)
+    |> Repo.insert()
+    |> tap_ok(fn revision ->
+      publish({:upsert, :article_revisions, revision})
+    end)
+  end
 
   def update_article_revision(%ArticleRevision{} = revision, attrs),
-    do: revision |> ArticleRevision.changeset(attrs) |> Repo.update()
+    do:
+      revision
+      |> ArticleRevision.changeset(attrs)
+      |> Repo.update()
+      |> tap_ok(fn updated_revision ->
+        publish({:upsert, :article_revisions, updated_revision})
+      end)
 
-  def delete_article_revision(%ArticleRevision{} = revision), do: Repo.delete(revision)
+  def delete_article_revision(%ArticleRevision{} = revision) do
+    Repo.delete(revision)
+    |> tap_ok(fn _ ->
+      publish({:delete, :article_revisions, revision.id})
+    end)
+  end
 
   defp put_article_assocs(changeset, attrs) do
     changeset
@@ -324,4 +428,41 @@ defmodule Core.News do
     |> Changeset.change()
     |> Changeset.add_error(:changed_by, message)
   end
+
+  defp article_ids_for_category(category_id) do
+    from(ac in "article_categories", where: ac.category_id == ^category_id, select: ac.article_id)
+    |> Repo.all()
+  end
+
+  defp article_ids_for_tag(tag_id) do
+    from(at in "article_tags", where: at.tag_id == ^tag_id, select: at.article_id)
+    |> Repo.all()
+  end
+
+  defp article_ids_for_featured_media(media_id) do
+    from(a in Article, where: a.featured_image_id == ^media_id, select: a.id)
+    |> Repo.all()
+  end
+
+  defp article_revision_ids_for_featured_media(media_id) do
+    from(r in ArticleRevision, where: r.featured_image_id == ^media_id, select: r.id)
+    |> Repo.all()
+  end
+
+  defp article_revision_ids_for_article(article_id) do
+    from(r in ArticleRevision, where: r.article_id == ^article_id, select: r.id)
+    |> Repo.all()
+  end
+
+  defp publish(event) do
+    publisher = Application.get_env(:core, :search_events_module, Core.Search.Events)
+    publisher.publish(event)
+  end
+
+  defp tap_ok({:ok, value}, fun) when is_function(fun, 1) do
+    fun.(value)
+    {:ok, value}
+  end
+
+  defp tap_ok(other, _fun), do: other
 end

@@ -8,7 +8,10 @@ defmodule Core.Application do
   @impl true
   def start(_type, _args) do
     children = [
-      Core.Repo
+      Core.Repo,
+      {Finch, name: Core.Finch},
+      {Task.Supervisor, name: Core.Search.TaskSupervisor},
+      {Core.Search.EventWorker, []}
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
