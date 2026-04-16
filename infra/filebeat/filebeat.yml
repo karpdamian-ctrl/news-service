@@ -1,0 +1,24 @@
+filebeat.inputs:
+  - type: filestream
+    id: docker-container-logs
+    enabled: true
+    parsers:
+      - container: ~
+    paths:
+      - /var/lib/docker/containers/*/*.log
+
+processors:
+  - add_docker_metadata:
+      host: "unix:///var/run/docker.sock"
+
+output.elasticsearch:
+  hosts: ["http://elasticsearch:9200"]
+  index: "news-logs-%{+yyyy.MM.dd}"
+
+setup.kibana:
+  host: "kibana:5601"
+
+setup.template.name: "news-logs"
+setup.template.pattern: "news-logs-*"
+
+logging.level: info

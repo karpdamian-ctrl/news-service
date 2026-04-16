@@ -1,0 +1,185 @@
+services:
+  symfony:
+    build:
+      context: .
+      dockerfile: infra/php/Dockerfile
+    container_name: news_symfony
+    user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
+    working_dir: /var/www/html
+    volumes:
+      - ./php:/var/www/html
+    ports:
+      - "8080:8000"
+    environment:
+      APP_ENV: dev
+      HOME: /tmp
+      DATABASE_URL: postgresql://news_php:news_php@php_db:5432/news_php?serverVersion=16&charset=utf8
+      REDIS_URL: redis://redis:6379
+      RABBITMQ_URL: amqp://news:news@rabbitmq:5672
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+    depends_on:
+      php_db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+
+  phoenix:
+    build:
+      context: .
+      dockerfile: infra/elixir/Dockerfile
+    container_name: news_phoenix
+    user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
+    working_dir: /app
+    volumes:
+      - ./elixir/news_umbrella:/app
+    ports:
+      - "4000:4000"
+    environment:
+      PORT: "4000"
+      PHX_HOST: localhost
+      TAILWIND_DISABLE_WATCHMAN: "true"
+      HOME: /tmp
+      MIX_HOME: /tmp/.mix
+      HEX_HOME: /tmp/.hex
+      POSTGRES_HOST: elixir_db
+      POSTGRES_DB: news_elixir
+      POSTGRES_DB_TEST: news_elixir_test
+      POSTGRES_USER: news_elixir
+      POSTGRES_PASSWORD: news_elixir
+      REDIS_URL: redis://redis:6379
+      RABBITMQ_URL: amqp://news:news@rabbitmq:5672
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+    depends_on:
+      elixir_db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+
+  php_db:
+    image: postgres:16
+    container_name: news_php_db
+    environment:
+      POSTGRES_DB: news_php
+      POSTGRES_USER: news_php
+      POSTGRES_PASSWORD: news_php
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U news_php -d news_php"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - php_db_data:/var/lib/postgresql/data
+
+  elixir_db:
+    image: postgres:16
+    container_name: news_elixir_db
+    environment:
+      POSTGRES_DB: news_elixir
+      POSTGRES_USER: news_elixir
+      POSTGRES_PASSWORD: news_elixir
+    ports:
+      - "5434:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U news_elixir -d news_elixir"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - elixir_db_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+    container_name: news_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  redis_commander:
+    image: rediscommander/redis-commander:latest
+    container_name: news_redis_commander
+    environment:
+      REDIS_HOSTS: local:redis:6379
+    ports:
+      - "8081:8081"
+    depends_on:
+      redis:
+        condition: service_started
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: news_rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: news
+      RABBITMQ_DEFAULT_PASS: news
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.3
+    container_name: news_elasticsearch
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: -Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9200/_cluster/health >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.15.3
+    container_name: news_kibana
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+      XPACK_SECURITY_ENABLED: "false"
+    ports:
+      - "5601:5601"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.15.3
+    container_name: news_filebeat
+    user: root
+    command: ["filebeat", "-e", "-strict.perms=false"]
+    volumes:
+      - ./infra/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      kibana:
+        condition: service_started
+
+volumes:
+  php_db_data:
+  elixir_db_data:
+  redis_data:
+  rabbitmq_data:
+  elasticsearch_data:

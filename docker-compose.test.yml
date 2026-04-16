@@ -1,0 +1,10 @@
+services:
+  symfony:
+    environment:
+      APP_ENV: test
+      DATABASE_URL: postgresql://news_php:news_php@php_db:5432/news_php_test?serverVersion=16&charset=utf8
+
+  phoenix:
+    environment:
+      MIX_ENV: test
+      POSTGRES_DB_TEST: news_elixir_test

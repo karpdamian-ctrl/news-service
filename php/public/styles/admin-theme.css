@@ -1,0 +1,72 @@
+:root {
+  --brand-bg: #f6f8fc;
+  --brand-card: #ffffff;
+  --brand-ink: #132238;
+  --brand-muted: #5a6b82;
+  --brand-primary: #0f62fe;
+  --brand-accent: #ff8a00;
+  --brand-border: #d7dfeb;
+}
+
+body.ea {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(15, 98, 254, 0.12), transparent 40%),
+    radial-gradient(circle at 0% 100%, rgba(255, 138, 0, 0.10), transparent 45%),
+    var(--brand-bg);
+  color: var(--brand-ink);
+}
+
+.ea-content,
+.content-panel,
+.datagrid,
+.form-panel {
+  border: 1px solid var(--brand-border);
+  border-radius: 14px;
+  background: var(--brand-card);
+  box-shadow: 0 8px 24px rgba(14, 24, 39, 0.06);
+}
+
+#main-menu {
+  background: linear-gradient(180deg, #11243b 0%, #1a3658 100%);
+  color: #e8edf5;
+}
+
+#main-menu .menu-item a {
+  border-radius: 10px;
+}
+
+#main-menu .menu-item.active a,
+#main-menu .menu-item a:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.table.datagrid thead th {
+  background: #eef3fb;
+  color: var(--brand-ink);
+}
+
+.btn-primary,
+.page-item.active .page-link {
+  background: var(--brand-primary);
+  border-color: var(--brand-primary);
+}
+
+.btn-secondary {
+  background: #eaf0fb;
+  border-color: #d7e2f7;
+  color: #16304f;
+}
+
+.badge {
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.ea .field-boolean .form-check-input:checked {
+  background-color: var(--brand-accent);
+  border-color: var(--brand-accent);
+}
+
+.content-top {
+  backdrop-filter: saturate(1.2);
+}

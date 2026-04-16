@@ -1,0 +1,23 @@
+/* Minimal bridge for EasyAdmin layout while using plain Bootstrap/Bootswatch theme */
+body.ea {
+  background-color: #f8f9fa;
+}
+
+.ea-sidebar {
+  min-height: 100vh;
+}
+
+.ea-content .content-panel,
+.ea-content .datagrid,
+.ea-content .form-panel {
+  border-radius: 0.5rem;
+}
+
+#main-menu .menu-item a {
+  border-radius: 0.375rem;
+}
+
+.login-page-wrapper {
+  min-height: 100vh;
+  background: #f8f9fa;
+}
