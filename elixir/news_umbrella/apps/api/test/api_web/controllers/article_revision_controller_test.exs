@@ -3,65 +3,88 @@ defmodule ApiWeb.ArticleRevisionControllerTest do
 
   alias Core.News
 
-  describe "article revisions CRUD" do
+  describe "article revisions read-only endpoints" do
     setup %{conn: conn} do
+      {:ok, category} = News.create_category(%{name: "Revision", slug: "revision"})
+      {:ok, tag} = News.create_tag(%{name: "History", slug: "history"})
+
       {:ok, article} =
         News.create_article(%{
           title: "Revision Base Article",
           slug: "revision-base-article",
           content: "Base article content long enough for revision tests.",
           status: "draft",
-          author: "Editor"
+          author: "Editor",
+          category_ids: [category.id],
+          tag_ids: [tag.id]
+        })
+
+      {:ok, _updated_article} =
+        News.update_article(article, %{
+          "title" => "Revision Base Article Updated",
+          "slug" => "revision-base-article-updated",
+          "content" => "Updated base article content long enough for revision tests.",
+          "status" => "review",
+          "author" => "Editor",
+          "category_ids" => [category.id],
+          "tag_ids" => [tag.id],
+          "changed_by" => "Jan Redaktor"
         })
 
       {:ok, conn: authenticated_conn(conn), article: article}
     end
 
-    test "creates, shows, updates and deletes article revision", %{conn: conn, article: article} do
-      create_conn =
+    test "lists and shows revisions", %{conn: conn, article: article} do
+      list_conn =
+        get(conn, "/api/v1/article-revisions", %{"filter" => %{"article_id" => article.id}})
+
+      assert %{"data" => revisions} = json_response(list_conn, 200)
+      assert length(revisions) >= 1
+
+      [latest | _] = revisions
+      assert latest["article_id"] == article.id
+
+      show_conn = get(conn, "/api/v1/article-revisions/#{latest["id"]}")
+      assert %{"data" => shown} = json_response(show_conn, 200)
+      assert shown["id"] == latest["id"]
+      assert shown["title"] == "Revision Base Article"
+      assert shown["slug"] == "revision-base-article"
+      assert shown["status"] == "draft"
+      assert shown["author"] == "Editor"
+      assert shown["changed_by"] == "Jan Redaktor"
+      assert is_binary(shown["modified_at"])
+    end
+
+    test "returns 404 for write methods", %{conn: conn, article: article} do
+      conn = Plug.Conn.put_req_header(conn, "accept", "application/json")
+
+      post_conn =
         post(conn, "/api/v1/article-revisions", %{
           "article_id" => article.id,
           "changed_by" => "Copy Editor",
           "title" => "Revision V1",
-          "description" => "Revision description",
+          "slug" => "revision-v1",
           "content" => "Revision content with enough length for validation.",
-          "change_note" => "Grammar fixes"
+          "status" => "draft",
+          "author" => "Copy Editor"
         })
 
-      assert %{"data" => created} = json_response(create_conn, 201)
-      id = created["id"]
+      assert %{"errors" => %{"detail" => "Not Found"}} = json_response(post_conn, 404)
 
-      show_conn = get(conn, "/api/v1/article-revisions/#{id}")
-      assert %{"data" => shown} = json_response(show_conn, 200)
-      assert shown["article_id"] == article.id
-
-      update_conn =
-        put(conn, "/api/v1/article-revisions/#{id}", %{
+      put_conn =
+        put(conn, "/api/v1/article-revisions/1", %{
           "title" => "Revision V2",
+          "slug" => "revision-v2",
           "content" => "Revision content updated with enough length for validation.",
+          "status" => "review",
+          "author" => "Copy Editor",
           "changed_by" => "Copy Editor"
         })
 
-      assert %{"data" => updated} = json_response(update_conn, 200)
-      assert updated["title"] == "Revision V2"
+      assert %{"errors" => %{"detail" => "Not Found"}} = json_response(put_conn, 404)
 
-      delete_conn = delete(conn, "/api/v1/article-revisions/#{id}")
-      assert response(delete_conn, 204)
-    end
-
-    test "returns 422 for invalid revision payload", %{conn: conn, article: article} do
-      conn =
-        post(conn, "/api/v1/article-revisions", %{
-          "article_id" => article.id,
-          "changed_by" => "CE",
-          "title" => "Bad",
-          "content" => "Too short"
-        })
-
-      assert %{"errors" => errors} = json_response(conn, 422)
-      assert Map.has_key?(errors, "title")
-      assert Map.has_key?(errors, "content")
-      assert Map.has_key?(errors, "changed_by")
+      delete_conn = delete(conn, "/api/v1/article-revisions/1")
+      assert %{"errors" => %{"detail" => "Not Found"}} = json_response(delete_conn, 404)
     end
   end
 end

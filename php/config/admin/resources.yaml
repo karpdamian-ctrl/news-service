@@ -1,0 +1,92 @@
+resources:
+  articles:
+    label: Articles
+    endpoint: articles
+    list_fields: [id, title, slug, status, author, published_at]
+    sortable_fields: [id, title, slug, status, author, published_at]
+    form_fields:
+      - { name: title, label: Title, type: text, required: true }
+      - { name: slug, label: Slug, type: text, required: true }
+      - { name: description, label: Description, type: textarea }
+      - { name: content, label: Content (markdown), type: textarea, required: true }
+      - { name: status, label: Status, type: select, choices: [draft, review, scheduled, published, archived], required: true }
+      - { name: author, label: Author, type: text, required: true }
+      - { name: published_at, label: Published at (ISO 8601), type: text }
+      - { name: is_breaking, label: Is breaking, type: checkbox }
+      - { name: view_count, label: View count, type: number }
+      - { name: featured_image_id, label: Featured image, type: select, choices_from: media }
+      - { name: category_ids, label: Categories, type: multiselect, choices_from: categories, required: true }
+      - { name: tag_ids, label: Tags, type: multiselect, choices_from: tags, required: true }
+
+  categories:
+    label: Categories
+    endpoint: categories
+    list_fields: [id, name, slug]
+    sortable_fields: [id, name, slug]
+    form_fields:
+      - { name: name, label: Name, type: text, required: true }
+      - { name: slug, label: Slug, type: text, required: true }
+      - { name: description, label: Description, type: textarea }
+
+  tags:
+    label: Tags
+    endpoint: tags
+    list_fields: [id, name, slug]
+    sortable_fields: [id, name, slug]
+    form_fields:
+      - { name: name, label: Name, type: text, required: true }
+      - { name: slug, label: Slug, type: text, required: true }
+
+  media:
+    label: Media
+    endpoint: media
+    list_fields: [id, type, path, mime_type, size_bytes, uploaded_by]
+    sortable_fields: [id, type, path, mime_type, size_bytes, uploaded_by]
+    form_fields:
+      - { name: type, label: Type, type: select, choices: [image, video, audio, document], required: true }
+      - { name: path, label: Path, type: text, required: true }
+      - { name: mime_type, label: MIME type, type: text }
+      - { name: size_bytes, label: Size bytes, type: number }
+      - { name: alt_text, label: Alt text, type: text }
+      - { name: caption, label: Caption, type: textarea }
+      - { name: uploaded_by, label: Uploaded by, type: text }
+
+  article-revisions:
+    label: Revisions
+    endpoint: article-revisions
+    read_only: true
+    list_fields: [id, article_id, title, changed_by, modified_at]
+    sortable_fields: [id, article_id, title, changed_by, modified_at]
+    detail_fields:
+      - id
+      - article_id
+      - title
+      - slug
+      - status
+      - author
+      - changed_by
+      - change_note
+      - published_at
+      - is_breaking
+      - view_count
+      - featured_image_id
+      - category_ids
+      - tag_ids
+      - description
+      - content
+      - modified_at
+      - inserted_at
+
+  users:
+    label: Users
+    source: local
+    list_fields: [id, email, firstName, lastName, roles, isActive, updatedAt]
+    sortable_fields: [id, email, firstName, lastName, isActive, updatedAt]
+    detail_fields: [id, email, firstName, lastName, roles, isActive, createdAt, updatedAt]
+    form_fields:
+      - { name: email, label: Email, type: text, required: true }
+      - { name: firstName, label: First name, type: text, required: true }
+      - { name: lastName, label: Last name, type: text, required: true }
+      - { name: roles, label: Roles, type: multiselect, choices: [ROLE_ADMIN, ROLE_REDACTOR] }
+      - { name: password, label: Password, type: text }
+      - { name: isActive, label: Active, type: checkbox }

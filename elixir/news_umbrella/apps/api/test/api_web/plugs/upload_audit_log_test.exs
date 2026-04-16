@@ -1,5 +1,5 @@
 defmodule ApiWeb.Plugs.UploadAuditLogTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   import ExUnit.CaptureLog
   import Phoenix.ConnTest

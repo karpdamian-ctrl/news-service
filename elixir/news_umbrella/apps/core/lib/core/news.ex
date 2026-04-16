@@ -4,6 +4,7 @@ defmodule Core.News do
   import Ecto.Query, warn: false
   alias Core.Repo
   alias Ecto.Changeset
+  alias Ecto.Multi
 
   alias Core.News.{Article, ArticleRevision, Category, Media, Tag}
   alias Core.News.Query
@@ -54,7 +55,7 @@ defmodule Core.News do
   # Media
   def list_media(params \\ %{}) do
     Query.list(Media, params,
-      sortable: [:id, :type, :path, :size_bytes, :inserted_at],
+      sortable: [:id, :type, :path, :mime_type, :size_bytes, :uploaded_by, :inserted_at],
       filterable: [:type, :mime_type, :uploaded_by],
       search_fields: [:type, :path, :mime_type, :alt_text, :caption, :uploaded_by],
       default_sort: :inserted_at,
@@ -79,6 +80,7 @@ defmodule Core.News do
         :title,
         :slug,
         :status,
+        :author,
         :published_at,
         :view_count,
         :inserted_at,
@@ -104,12 +106,32 @@ defmodule Core.News do
   end
 
   def update_article(%Article{} = article, attrs) do
-    article
-    |> Repo.preload([:categories, :tags])
-    |> Article.changeset(attrs)
-    |> put_article_assocs(attrs)
-    |> Repo.update()
-    |> maybe_preload_article()
+    article = Repo.preload(article, [:categories, :tags])
+
+    with {:ok, changed_by} <- required_changed_by(attrs) do
+      revision_attrs = build_revision_attrs(article, attrs, changed_by)
+
+      Multi.new()
+      |> Multi.insert(:revision, ArticleRevision.changeset(%ArticleRevision{}, revision_attrs))
+      |> Multi.update(:article, article |> Article.changeset(attrs) |> put_article_assocs(attrs))
+      |> Repo.transaction()
+      |> case do
+        {:ok, %{article: updated_article}} ->
+          {:ok, Repo.preload(updated_article, @article_preloads)}
+
+        {:error, :article, article_changeset, _changes_so_far} ->
+          {:error, article_changeset}
+
+        {:error, :revision, revision_changeset, _changes_so_far} ->
+          {:error, revision_changeset}
+      end
+    else
+      {:error, :required} ->
+        {:error, changed_by_error_changeset(article, "is required")}
+
+      {:error, :too_short} ->
+        {:error, changed_by_error_changeset(article, "should be at least 3 character(s)")}
+    end
   end
 
   def delete_article(%Article{} = article), do: Repo.delete(article)
@@ -117,10 +139,19 @@ defmodule Core.News do
   # Revisions
   def list_article_revisions(params \\ %{}) do
     Query.list(ArticleRevision, params,
-      sortable: [:id, :title, :article_id, :changed_by, :inserted_at],
-      filterable: [:title, :article_id, :changed_by],
-      search_fields: [:title, :description, :content, :change_note, :changed_by],
-      default_sort: :inserted_at,
+      sortable: [
+        :id,
+        :title,
+        :slug,
+        :status,
+        :article_id,
+        :changed_by,
+        :modified_at,
+        :inserted_at
+      ],
+      filterable: [:title, :slug, :status, :article_id, :author, :changed_by],
+      search_fields: [:title, :slug, :description, :content, :author, :change_note, :changed_by],
+      default_sort: :modified_at,
       default_order: :desc,
       preload: [:article]
     )
@@ -143,10 +174,16 @@ defmodule Core.News do
     |> maybe_put_tags(parse_assoc_ids(attrs, :tag_ids, "tag_ids"))
   end
 
-  defp maybe_put_categories(changeset, :absent), do: changeset
+  defp maybe_put_categories(changeset, :absent) do
+    Changeset.add_error(changeset, :category_ids, "can't be blank")
+  end
 
   defp maybe_put_categories(changeset, {:error, :invalid}) do
     Changeset.add_error(changeset, :category_ids, "must contain valid positive integer ids")
+  end
+
+  defp maybe_put_categories(changeset, {:ok, []}) do
+    Changeset.add_error(changeset, :category_ids, "can't be blank")
   end
 
   defp maybe_put_categories(changeset, {:ok, ids}) do
@@ -159,10 +196,16 @@ defmodule Core.News do
     end
   end
 
-  defp maybe_put_tags(changeset, :absent), do: changeset
+  defp maybe_put_tags(changeset, :absent) do
+    Changeset.add_error(changeset, :tag_ids, "can't be blank")
+  end
 
   defp maybe_put_tags(changeset, {:error, :invalid}) do
     Changeset.add_error(changeset, :tag_ids, "must contain valid positive integer ids")
+  end
+
+  defp maybe_put_tags(changeset, {:ok, []}) do
+    Changeset.add_error(changeset, :tag_ids, "can't be blank")
   end
 
   defp maybe_put_tags(changeset, {:ok, ids}) do
@@ -220,4 +263,65 @@ defmodule Core.News do
   end
 
   defp cast_positive_integer(_), do: {:error, :invalid}
+
+  defp build_revision_attrs(%Article{} = article, attrs, changed_by) do
+    modified_at = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    %{
+      article_id: article.id,
+      title: article.title,
+      slug: article.slug,
+      description: article.description,
+      content: article.content,
+      status: article.status,
+      published_at: article.published_at,
+      is_breaking: article.is_breaking,
+      view_count: article.view_count,
+      author: article.author,
+      featured_image_id: article.featured_image_id,
+      category_ids: assoc_ids_from_preload(article.categories),
+      tag_ids: assoc_ids_from_preload(article.tags),
+      modified_at: modified_at,
+      change_note: revision_change_note(attrs),
+      changed_by: changed_by
+    }
+  end
+
+  defp revision_change_note(attrs) do
+    value = Map.get(attrs, "change_note") || Map.get(attrs, :change_note)
+
+    value
+    |> case do
+      nil -> ""
+      raw -> raw |> to_string() |> String.trim()
+    end
+    |> case do
+      "" -> "Automatic snapshot before article update"
+      note -> note
+    end
+  end
+
+  defp assoc_ids_from_preload(list) when is_list(list), do: Enum.map(list, & &1.id)
+  defp assoc_ids_from_preload(_), do: []
+
+  defp required_changed_by(attrs) do
+    value = Map.get(attrs, "changed_by") || Map.get(attrs, :changed_by)
+
+    value
+    |> case do
+      nil -> ""
+      raw -> raw |> to_string() |> String.trim()
+    end
+    |> case do
+      "" -> {:error, :required}
+      trimmed when byte_size(trimmed) < 3 -> {:error, :too_short}
+      trimmed -> {:ok, trimmed}
+    end
+  end
+
+  defp changed_by_error_changeset(%Article{} = article, message) do
+    article
+    |> Changeset.change()
+    |> Changeset.add_error(:changed_by, message)
+  end
 end

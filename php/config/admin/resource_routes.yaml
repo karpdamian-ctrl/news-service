@@ -1,0 +1,42 @@
+routes:
+  articles:
+    index: admin_articles_index
+    new: admin_articles_new
+    edit: admin_articles_edit
+    delete: admin_articles_delete
+    show: null
+
+  categories:
+    index: admin_categories_index
+    new: admin_categories_new
+    edit: admin_categories_edit
+    delete: admin_categories_delete
+    show: null
+
+  tags:
+    index: admin_tags_index
+    new: admin_tags_new
+    edit: admin_tags_edit
+    delete: admin_tags_delete
+    show: null
+
+  media:
+    index: admin_media_index
+    new: admin_media_new
+    edit: admin_media_edit
+    delete: admin_media_delete
+    show: null
+
+  article-revisions:
+    index: admin_revisions_index
+    new: null
+    edit: null
+    delete: null
+    show: admin_revisions_show
+
+  users:
+    index: admin_users_index
+    new: admin_users_new
+    edit: admin_users_edit
+    delete: admin_users_delete
+    show: null

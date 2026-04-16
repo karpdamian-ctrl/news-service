@@ -52,6 +52,7 @@ defmodule ApiWeb.ArticleControllerTest do
           status: "draft",
           author: "Author C",
           category_ids: [c2.id],
+          tag_ids: [t1.id],
           view_count: 2,
           is_breaking: false
         })
@@ -193,29 +194,110 @@ defmodule ApiWeb.ArticleControllerTest do
           "slug" => "cloud-market-outlook-updated",
           "content" => "Updated long article content for CRUD tests with enough characters.",
           "status" => "draft",
-          "author" => "Jane Reporter"
+          "author" => "Jane Reporter",
+          "category_ids" => [category.id],
+          "tag_ids" => [tag.id],
+          "changed_by" => "Jane Reporter"
         })
 
       assert %{"data" => updated} = json_response(update_conn, 200)
       assert updated["title"] == "Cloud Market Outlook Updated"
       assert updated["status"] == "draft"
 
+      revisions_conn =
+        get(conn, "/api/v1/article-revisions", %{
+          "filter" => %{"article_id" => Integer.to_string(id)},
+          "sort" => "inserted_at",
+          "order" => "desc"
+        })
+
+      assert %{"data" => revisions} = json_response(revisions_conn, 200)
+      assert length(revisions) == 1
+
+      [latest_revision] = revisions
+      assert latest_revision["article_id"] == id
+      assert latest_revision["title"] == "Cloud Market Outlook"
+      assert latest_revision["slug"] == "cloud-market-outlook"
+      assert latest_revision["description"] == "Initial description"
+      assert latest_revision["status"] == "published"
+      assert latest_revision["published_at"] == "2026-04-16T12:00:00Z"
+      assert latest_revision["is_breaking"] == false
+      assert latest_revision["view_count"] == 0
+      assert latest_revision["author"] == "Jane Reporter"
+      assert latest_revision["featured_image_id"] == media.id
+      assert latest_revision["category_ids"] == [category.id]
+      assert latest_revision["tag_ids"] == [tag.id]
+      assert is_binary(latest_revision["modified_at"])
+      assert latest_revision["changed_by"] == "Jane Reporter"
+      assert latest_revision["change_note"] == "Automatic snapshot before article update"
+      assert latest_revision["content"] =~ "Long article content for CRUD tests"
+
       delete_conn = delete(conn, "/api/v1/articles/#{id}")
       assert response(delete_conn, 204)
     end
 
     test "returns 422 when published article has no published_at", %{conn: conn} do
+      {:ok, category} = News.create_category(%{name: "Publishing", slug: "publishing"})
+      {:ok, tag} = News.create_tag(%{name: "Breaking", slug: "breaking"})
+
       conn =
         post(conn, "/api/v1/articles", %{
           "title" => "Invalid Published",
           "slug" => "invalid-published",
           "content" => "Long enough content to trigger published_at validation on create.",
           "status" => "published",
-          "author" => "Editor"
+          "author" => "Editor",
+          "category_ids" => [category.id],
+          "tag_ids" => [tag.id]
         })
 
       assert %{"errors" => errors} = json_response(conn, 422)
       assert Map.has_key?(errors, "published_at")
+    end
+
+    test "returns 422 when updating article without changed_by", %{conn: conn} do
+      {:ok, category} = News.create_category(%{name: "Revision", slug: "revision"})
+      {:ok, tag} = News.create_tag(%{name: "Workflow", slug: "workflow"})
+
+      {:ok, article} =
+        News.create_article(%{
+          title: "Needs Revision Actor",
+          slug: "needs-revision-actor",
+          content: "Content long enough for update validation and revision snapshot test.",
+          status: "draft",
+          author: "Initial Author",
+          category_ids: [category.id],
+          tag_ids: [tag.id]
+        })
+
+      conn =
+        put(conn, "/api/v1/articles/#{article.id}", %{
+          "title" => "Needs Revision Actor Updated",
+          "content" =>
+            "Updated content long enough for update validation and revision snapshot test.",
+          "status" => "draft",
+          "author" => "Initial Author",
+          "category_ids" => [category.id],
+          "tag_ids" => [tag.id]
+        })
+
+      assert %{"errors" => errors} = json_response(conn, 422)
+      assert Map.has_key?(errors, "changed_by")
+    end
+
+    test "returns 422 when category_ids and tag_ids are missing", %{conn: conn} do
+      conn =
+        post(conn, "/api/v1/articles", %{
+          "title" => "Missing Relations",
+          "slug" => "missing-relations",
+          "content" => "Content long enough to verify required relations validation path.",
+          "status" => "draft",
+          "author" => "Editor"
+        })
+
+      assert %{"errors" => errors} = json_response(conn, 422)
+      assert Map.has_key?(errors, "category_ids")
+      assert Map.has_key?(errors, "tag_ids")
     end
   end
 end

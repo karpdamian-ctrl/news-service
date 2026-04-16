@@ -1,7 +1,7 @@
 # News Platform (Dev/Test)
 
 Projekt portfolio oparty o mikroserwisy:
-- `symfony` (PHP + EasyAdmin)
+- `symfony` (PHP panel adminowy działający przez Elixir API)
 - `phoenix` (Elixir/Phoenix umbrella)
 - `core` (subapka Elixir odpowiedzialna za warstwę danych / Repo)
 - osobne PostgreSQL: `php_db` i `elixir_db`
@@ -69,7 +69,7 @@ docker compose logs -f filebeat
 
 - Symfony: http://localhost:8080
 - Symfony login: http://localhost:8080/login
-- EasyAdmin: http://localhost:8080/admin
+- Symfony Admin Panel: http://localhost:8080/admin
 - Symfony Profiler: http://localhost:8080/_profiler/
 - Phoenix: http://localhost:4000
 - Elixir API: http://localhost:4000/api/v1
@@ -86,9 +86,9 @@ Trwałość ustawień Kibany:
 
 ## Dane aplikacji
 
-Aktualnie source of truth dla danych newsowych jest po stronie Elixira (`apps/core` + `Core.Repo`).
-API CRUD dla encji jest wystawione w Phoenix (`apps/api`) pod `/api/v1/*`.
-API nie ma już obsługi panelu admina/użytkowników; autoryzacja to prosty token.
+Source of truth dla danych newsowych jest po stronie Elixira (`apps/core` + `Core.Repo`).
+Panel adminowy w Symfony wykonuje CRUD wyłącznie przez Elixir API (`/api/v1/*`) i nie używa encji Doctrine dla newsów.
+Autoryzacja API to prosty token.
 
 ## Loginy / hasła
 
@@ -99,50 +99,76 @@ RabbitMQ Management:
 Elixir API token:
 - (trzymany w `elixir/news_umbrella/config/config.exs`): `news_hV7mQ2zN8pL4xR1kT9cY6sD3wF5bJ0`
 
-EasyAdmin (seed):
+Panel Symfony (seed do bazy `users`):
 - admin: `admin@news.local` / `admin123`
 - redactor: `redactor@news.local` / `redactor123`
 
 Pozostałe panele są w dev bez dodatkowego logowania.
 
-## Najczęstsze komendy `exec`
+## Komendy (PHP i Elixir)
 
-Shell w Symfony:
+Podstawowe wejście do kontenerów:
 ```bash
 docker compose exec symfony sh
-```
-
-Shell w Phoenix:
-```bash
 docker compose exec phoenix sh
 ```
 
-Console Symfony:
+### PHP (Symfony)
+
+Console:
 ```bash
 docker compose exec symfony php bin/console
 ```
 
-Mix w Phoenix:
+Migracje:
 ```bash
-docker compose exec phoenix mix help
+docker compose exec symfony php bin/console doctrine:migrations:migrate --no-interaction
 ```
 
-## Jakość kodu
-
-Elixir:
+Seed użytkowników (admin + redactor):
 ```bash
-docker compose exec phoenix mix test
-docker compose exec phoenix mix format --check-formatted
-docker compose exec phoenix mix credo
-docker compose exec phoenix mix dialyzer
+docker compose exec symfony php bin/console app:seed-users --no-interaction
 ```
 
-Symfony:
+Jakość kodu / testy:
 ```bash
 docker compose exec symfony composer test
 docker compose exec symfony composer phpstan
 docker compose exec symfony composer php-cs-fixer
 ```
+
+### Elixir (Phoenix umbrella)
+
+Mix:
+```bash
+docker compose exec phoenix mix help
+```
+
+Migracje `core`:
+```bash
+docker compose exec phoenix sh -lc 'cd apps/core && mix ecto.migrate'
+```
+
+Seedy `core`:
+```bash
+docker compose exec phoenix sh -lc 'cd apps/core && mix run priv/repo/seeds.exs'
+```
+
+Przeładowanie seedów `core` (drop + create + migrate + seeds):
+```bash
+docker compose exec phoenix sh -lc 'cd apps/core && mix ecto.reset'
+```
+
+Jakość kodu / testy:
+```bash
+docker compose exec phoenix mix test
+docker compose exec phoenix mix test.integration
+docker compose exec phoenix mix format --check-formatted
+docker compose exec phoenix mix credo
+docker compose exec phoenix mix dialyzer
+```
+
+`mix test` pomija testy integracyjne (`@moduletag :integration`), a `mix test.integration` uruchamia tylko je.
 
 Symfony debug toolbar:
 - dziala w `APP_ENV=dev` (aktualnie ustawione w `docker-compose.yml`)
@@ -166,11 +192,6 @@ docker compose exec elixir_db psql -U news_elixir -d news_elixir
 Symfony (Doctrine):
 ```bash
 docker compose exec symfony php bin/console doctrine:migrations:migrate --no-interaction
-```
-
-Symfony seeds:
-```bash
-docker compose exec symfony php bin/console app:seed-news --no-interaction
 ```
 
 Elixir (`core`):
@@ -305,7 +326,9 @@ curl -H "Authorization: Bearer news_hV7mQ2zN8pL4xR1kT9cY6sD3wF5bJ0" http://local
 - Filebeat wysyła logi kontenerów do indeksów `news-logs-*`.
 - W Kibanie utwórz Data View: `news-logs-*`.
 - Operacje API Elixira są logowane jako wpisy `API_AUDIT ...` (JSON w `message`).
+- Operacje aktualizacji użytkowników w Symfony są logowane jako wpisy `USER_AUDIT ...` (JSON w `message`).
 - Przykładowy filtr w Kibanie (KQL): `container.name : "news_phoenix" and message : "API_AUDIT"`.
+- Przykładowy filtr dla Symfony users audit (KQL): `container.name : "news_symfony" and message : "USER_AUDIT"`.
 
 ## Struktura katalogów
 

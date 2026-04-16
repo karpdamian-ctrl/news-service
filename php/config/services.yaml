@@ -7,17 +7,28 @@
 # Put parameters here that don't need to change on each machine where the app is deployed
 # https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
 parameters:
+    app.news_api.base_url: '%env(NEWS_API_BASE_URL)%'
+    app.news_api.token: '%env(NEWS_API_TOKEN)%'
 
 services:
     # default configuration for services in *this* file
     _defaults:
         autowire: true      # Automatically injects dependencies in your services.
         autoconfigure: true # Automatically registers your services as commands, event subscribers, etc.
+        bind:
+            string $baseUrl: '%app.news_api.base_url%'
+            string $token: '%app.news_api.token%'
 
     # makes classes in src/ available to be used as services
     # this creates a service per class whose id is the fully-qualified class name
     App\:
         resource: '../src/'
+
+    App\Api\NewsApiClient:
+        arguments:
+            $httpClient: '@news_api.client'
+
+    App\Domain\Admin\ResourceCatalogProvider: '@App\Infrastructure\Admin\YamlResourceCatalogProvider'
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones

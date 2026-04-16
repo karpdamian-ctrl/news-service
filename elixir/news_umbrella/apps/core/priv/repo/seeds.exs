@@ -78,19 +78,19 @@ article_image_section = fn idx ->
   cond do
     rem(idx, 4) == 0 ->
       """
-## Material wizualny
+      ## Material wizualny
 
-![Kontekst artykulu](/uploads/news/#{primary})
+      ![Kontekst artykulu](/uploads/news/#{primary})
 
-![Dodatkowa ilustracja](/uploads/news/#{secondary})
-"""
+      ![Dodatkowa ilustracja](/uploads/news/#{secondary})
+      """
 
     rem(idx, 3) == 0 ->
       """
-## Material wizualny
+      ## Material wizualny
 
-![Kontekst artykulu](/uploads/news/#{primary})
-"""
+      ![Kontekst artykulu](/uploads/news/#{primary})
+      """
 
     true ->
       ""
@@ -99,41 +99,37 @@ end
 
 article_body = fn title, idx ->
   """
-# #{title}
+  # #{title}
 
-## TL;DR
+  ## TL;DR
 
-W tym materiale podsumowujemy najwazniejsze sygnaly z rynku oraz wplyw zmian na zespoly produktowe i redakcyjne. Tekst jest przygotowany w formacie markdown, aby latwo bylo go renderowac w aplikacji i API.
+  W tym materiale podsumowujemy najwazniejsze sygnaly z rynku oraz wplyw zmian na zespoly produktowe i redakcyjne. Tekst jest przygotowany w formacie markdown, aby latwo bylo go renderowac w aplikacji i API.
 
-## Kontekst
+  ## Kontekst
 
-Ostatnie tygodnie przyniosly wyrazne przyspieszenie po stronie wdrozen technologicznych. Organizacje lacza podejscie iteracyjne z lepszym pomiarem efektow, dzieki czemu szybciej odrzucaja hipotezy, ktore nie dowoza oczekiwanej wartosci.
+  Ostatnie tygodnie przyniosly wyrazne przyspieszenie po stronie wdrozen technologicznych. Organizacje lacza podejscie iteracyjne z lepszym pomiarem efektow, dzieki czemu szybciej odrzucaja hipotezy, ktore nie dowoza oczekiwanej wartosci.
 
-## Co zmienia sie operacyjnie
+  ## Co zmienia sie operacyjnie
 
-- zespoly skracaja czas od pomyslu do publikacji,
-- rosnace znaczenie maja metryki jakosci i utrzymania,
-- coraz czesciej decyzje podejmowane sa na podstawie danych dziennych,
-- narzedzia analityczne sa integrowane bezposrednio z workflow.
+  - zespoly skracaja czas od pomyslu do publikacji,
+  - rosnace znaczenie maja metryki jakosci i utrzymania,
+  - coraz czesciej decyzje podejmowane sa na podstawie danych dziennych,
+  - narzedzia analityczne sa integrowane bezposrednio z workflow.
 
-## Wnioski redakcyjne
+  ## Wnioski redakcyjne
 
-Redakcje coraz czesciej pracuja na wspolnym zestawie standardow, aby zachowac spojnosc tresci i tempo publikacji. To oznacza wiecej pracy nad szablonami, ale mniej kosztownych poprawek na koncu procesu.
+  Redakcje coraz czesciej pracuja na wspolnym zestawie standardow, aby zachowac spojnosc tresci i tempo publikacji. To oznacza wiecej pracy nad szablonami, ale mniej kosztownych poprawek na koncu procesu.
 
-## Cytat eksperta
+  ## Cytat eksperta
 
-> Dobrze przygotowany proces publikacji jest tak samo wazny jak sam temat artykulu.
+  > Dobrze przygotowany proces publikacji jest tak samo wazny jak sam temat artykulu.
 
-#{article_image_section.(idx)}
+  #{article_image_section.(idx)}
 
-## Co dalej
+  ## Co dalej
 
-W kolejnych dniach bedziemy monitorowac wskazniki adopcji i porownywac wyniki miedzy segmentami. Wersja raportu ##{idx} zostanie rozszerzona o dane kwartalne oraz benchmarki regionalne.
-"""
-end
-
-revision_note = fn idx ->
-  "Korekta redakcyjna nr #{idx}: poprawa leadu, doprecyzowanie danych i formatowania markdown."
+  W kolejnych dniach bedziemy monitorowac wskazniki adopcji i porownywac wyniki miedzy segmentami. Wersja raportu ##{idx} zostanie rozszerzona o dane kwartalne oraz benchmarki regionalne.
+  """
 end
 
 description_intro = [
@@ -275,6 +271,10 @@ articles =
       Enum.at(tags, rem(idx + 5, length(tags))).id
     ]
 
+    if category_ids == [] or tag_ids == [] do
+      raise "Seed invariant broken: every article must have at least one category and one tag"
+    end
+
     {:ok, article} =
       News.create_article(%{
         title: title,
@@ -294,19 +294,6 @@ articles =
     article
   end)
 
-Enum.with_index(articles, 1)
-|> Enum.each(fn {article, idx} ->
-  if rem(idx, 2) == 0 do
-    {:ok, _revision} =
-      News.create_article_revision(%{
-        article_id: article.id,
-        changed_by: Enum.at(authors, rem(idx + 1, length(authors))),
-        title: article.title,
-        description: article.description,
-        content: article.content <> "\n\n### Update\n\nDodano akapit z aktualizacja metryk i komentarzem redakcji.",
-        change_note: revision_note.(idx)
-      })
-  end
-end)
-
-IO.puts("Seed completed: #{length(categories)} categories, #{length(tags)} tags, #{length(media_assets)} media, #{length(articles)} articles.")
+IO.puts(
+  "Seed completed: #{length(categories)} categories, #{length(tags)} tags, #{length(media_assets)} media, #{length(articles)} articles."
+)

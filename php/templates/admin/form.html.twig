@@ -1,0 +1,79 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block admin_content %}
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <h1 class="h3 mb-0">{{ is_edit ? 'Edit' : 'New' }} {{ resource_label }}</h1>
+        <a href="{{ path(routes.index) }}" class="btn btn-outline-secondary">Back</a>
+    </div>
+
+    {% if errors is not empty %}
+        <div class="alert alert-danger">
+            <ul class="mb-0">
+                {% for error in errors %}
+                    <li>{{ error }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <form method="post">
+                {% for field in fields %}
+                    {% set name = field.name %}
+                    {% set current = attribute(values, name)|default(field.type == 'checkbox' ? false : '') %}
+                    <div class="mb-3">
+                        <label class="form-label" for="field_{{ name }}">{{ field.label }}</label>
+
+                        {% if field.type == 'textarea' %}
+                            <textarea class="form-control" id="field_{{ name }}" name="{{ name }}" rows="6">{{ current }}</textarea>
+                        {% elseif field.type == 'select' %}
+                            {% set currentString = current is not same as(null) ? (current ~ '') : '' %}
+                            <select class="form-select" id="field_{{ name }}" name="{{ name }}">
+                                <option value="">-- none --</option>
+                                {% for choice in field.choices|default([]) %}
+                                    {% if choice is iterable and choice.id is defined %}
+                                        <option value="{{ choice.id }}" {{ currentString == (choice.id ~ '') ? 'selected' : '' }}>{{ choice.label }}</option>
+                                    {% else %}
+                                        <option value="{{ choice }}" {{ currentString == (choice ~ '') ? 'selected' : '' }}>{{ choice }}</option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
+                        {% elseif field.type == 'multiselect' %}
+                            {% set selected = current is iterable ? current : [] %}
+                            {% set selectedStrings = [] %}
+                            {% for selectedValue in selected %}
+                                {% set selectedStrings = selectedStrings|merge([selectedValue ~ '']) %}
+                            {% endfor %}
+                            <select class="form-select" id="field_{{ name }}" name="{{ name }}[]" multiple size="8" {{ field.required|default(false) ? 'required' : '' }}>
+                                {% for choice in field.choices|default([]) %}
+                                    {% if choice is iterable and choice.id is defined %}
+                                        <option value="{{ choice.id }}" {{ (choice.id ~ '') in selectedStrings ? 'selected' : '' }}>{{ choice.label }}</option>
+                                    {% else %}
+                                        <option value="{{ choice }}" {{ (choice ~ '') in selectedStrings ? 'selected' : '' }}>{{ choice }}</option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
+                        {% elseif field.type == 'checkbox' %}
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" value="1" id="field_{{ name }}" name="{{ name }}" {{ current ? 'checked' : '' }}>
+                                <label class="form-check-label" for="field_{{ name }}">Yes</label>
+                            </div>
+                        {% else %}
+                            <input
+                                class="form-control"
+                                id="field_{{ name }}"
+                                name="{{ name }}"
+                                type="{{ field.type == 'number' ? 'number' : 'text' }}"
+                                value="{{ current }}"
+                                {{ field.required|default(false) ? 'required' : '' }}
+                            >
+                        {% endif %}
+                    </div>
+                {% endfor %}
+
+                <button class="btn btn-primary" type="submit">{{ is_edit ? 'Save changes' : 'Create' }}</button>
+            </form>
+        </div>
+    </div>
+{% endblock %}

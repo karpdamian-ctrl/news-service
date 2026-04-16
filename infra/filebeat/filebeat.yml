@@ -1,15 +1,74 @@
 filebeat.inputs:
-  - type: filestream
-    id: docker-container-logs
+  - type: container
     enabled: true
-    parsers:
-      - container: ~
+    stream: all
     paths:
       - /var/lib/docker/containers/*/*.log
 
 processors:
   - add_docker_metadata:
       host: "unix:///var/run/docker.sock"
+  - drop_event:
+      when:
+        equals:
+          container.name: "news_filebeat"
+  - drop_event:
+      when:
+        not:
+          or:
+            - equals:
+                container.name: "news_phoenix"
+            - equals:
+                container.name: "news_symfony"
+  - drop_event:
+      when:
+        not:
+          or:
+            - regexp:
+                message: "API_AUDIT"
+            - regexp:
+                message: "MEDIA_AUDIT"
+            - regexp:
+                message: "USER_AUDIT"
+            - regexp:
+                message: "(?i)\\[(warning|error|critical)\\]"
+            - regexp:
+                message: "(?i)\\b(warning|error|critical|exception|panic|fatal)\\b"
+  - dissect:
+      tokenizer: "[%{log.level}] %{audit.tag} %{audit_json}"
+      field: "message"
+      target_prefix: ""
+      ignore_failure: true
+      when:
+        or:
+          - regexp:
+              message: "API_AUDIT"
+          - regexp:
+              message: "MEDIA_AUDIT"
+          - regexp:
+              message: "USER_AUDIT"
+  - decode_json_fields:
+      fields: ["audit_json"]
+      target: "audit"
+      overwrite_keys: true
+      add_error_key: true
+      process_array: false
+      max_depth: 1
+      when:
+        has_fields: ["audit_json"]
+  - drop_fields:
+      fields:
+        - "agent"
+        - "ecs"
+        - "host"
+        - "input"
+        - "log.file"
+        - "log.offset"
+        - "container.id"
+        - "container.image"
+        - "container.labels"
+        - "audit_json"
+      ignore_missing: true
 
 output.elasticsearch:
   hosts: ["http://elasticsearch:9200"]
@@ -21,4 +80,4 @@ setup.kibana:
 setup.template.name: "news-logs"
 setup.template.pattern: "news-logs-*"
 
-logging.level: info
+logging.level: warning

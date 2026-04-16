@@ -1,6 +1,10 @@
 # see https://symfony.com/doc/current/reference/configuration/framework.html
 framework:
     secret: '%env(APP_SECRET)%'
+    http_client:
+        scoped_clients:
+            news_api.client:
+                base_uri: '%env(NEWS_API_BASE_URL)%'
 
     # Note that the session will be started ONLY if you read or write from it.
     session: true

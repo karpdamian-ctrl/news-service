@@ -1,0 +1,48 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block admin_content %}
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <h1 class="h3 mb-0">{{ resource_label }} preview</h1>
+        <a href="{{ path(routes.index) }}" class="btn btn-outline-secondary">Back</a>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <dl class="row mb-0">
+                {% for field in detail_fields %}
+                    {% set value = attribute(item, field)|default(null) %}
+                    <dt class="col-sm-3 text-muted">{{ field }}</dt>
+                    <dd class="col-sm-9">
+                        {% if field == 'roles' %}
+                            {% set roles = value is iterable ? value : [] %}
+                            {% if roles is empty %}
+                                <span class="text-muted">-</span>
+                            {% else %}
+                                {% for role in roles %}
+                                    {% set roleLabel = role == 'ROLE_ADMIN' ? 'Admin' : (role == 'ROLE_REDACTOR' ? 'Redactor' : role) %}
+                                    <span class="badge text-bg-secondary me-1">{{ roleLabel }}</span>
+                                {% endfor %}
+                            {% endif %}
+                        {% elseif field == 'isActive' %}
+                            {% if value %}
+                                <span class="badge text-bg-success">&#10003; Active</span>
+                            {% else %}
+                                <span class="badge text-bg-danger">&times; Inactive</span>
+                            {% endif %}
+                        {% elseif value is same as(null) or value == '' %}
+                            <span class="text-muted">-</span>
+                        {% elseif field == 'content' %}
+                            <pre class="bg-light border rounded p-3 mb-0" style="white-space: pre-wrap;">{{ value }}</pre>
+                        {% elseif (field == 'updatedAt' or field == 'createdAt' or field == 'published_at' or field == 'inserted_at' or field == 'modified_at') %}
+                            {{ value|date('Y-m-d H:i:s') }}
+                        {% elseif value is iterable %}
+                            {{ value|json_encode }}
+                        {% else %}
+                            {{ value }}
+                        {% endif %}
+                    </dd>
+                {% endfor %}
+            </dl>
+        </div>
+    </div>
+{% endblock %}

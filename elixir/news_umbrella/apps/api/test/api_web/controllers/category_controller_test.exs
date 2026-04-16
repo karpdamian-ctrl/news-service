@@ -48,5 +48,16 @@ defmodule ApiWeb.CategoryControllerTest do
       not_found_conn = get(conn, "/api/v1/categories/#{id}")
       assert %{"error" => "not_found"} = json_response(not_found_conn, 404)
     end
+
+    test "supports q search on index", %{conn: conn} do
+      post(conn, "/api/v1/categories", %{"name" => "Technology", "slug" => "technology"})
+      post(conn, "/api/v1/categories", %{"name" => "Sports", "slug" => "sports"})
+
+      conn = get(conn, "/api/v1/categories", %{"q" => "tech"})
+
+      assert %{"data" => data, "meta" => meta} = json_response(conn, 200)
+      assert meta["total_count"] == 1
+      assert Enum.map(data, & &1["slug"]) == ["technology"]
+    end
   end
 end

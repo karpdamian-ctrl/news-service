@@ -30,7 +30,7 @@ defmodule ApiWeb.Router do
       resources "/tags", TagController, except: [:new, :edit]
       resources "/media", MediaController, except: [:new, :edit]
       resources "/articles", ArticleController, except: [:new, :edit]
-      resources "/article-revisions", ArticleRevisionController, except: [:new, :edit]
+      resources "/article-revisions", ArticleRevisionController, only: [:index, :show]
     end
   end
 end

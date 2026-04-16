@@ -14,10 +14,8 @@ use Symfony\Component\Security\Core\User\UserInterface;
 #[ORM\Table(name: 'users')]
 #[ORM\UniqueConstraint(name: 'uniq_users_email', columns: ['email'])]
 #[UniqueEntity(fields: ['email'])]
-#[ORM\HasLifecycleCallbacks]
 class User implements UserInterface, PasswordAuthenticatedUserInterface
 {
-    public const ROLE_USER = 'ROLE_USER';
     public const ROLE_ADMIN = 'ROLE_ADMIN';
     public const ROLE_REDACTOR = 'ROLE_REDACTOR';
 
@@ -32,20 +30,20 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     /**
      * @var list<string>
      */
-    #[ORM\Column]
+    #[ORM\Column(type: 'json')]
     private array $roles = [];
 
-    #[ORM\Column]
+    #[ORM\Column(length: 255)]
     private string $password = '';
-
-    #[ORM\Column(length: 100, nullable: true)]
-    private ?string $firstName = null;
-
-    #[ORM\Column(length: 100, nullable: true)]
-    private ?string $lastName = null;
 
     #[ORM\Column(length: 150)]
     private string $displayName = '';
+
+    #[ORM\Column(length: 80)]
+    private string $firstName = '';
+
+    #[ORM\Column(length: 120)]
+    private string $lastName = '';
 
     #[ORM\Column(options: ['default' => true])]
     private bool $isActive = true;
@@ -56,20 +54,11 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column]
     private \DateTimeImmutable $updatedAt;
 
-    private ?string $plainPassword = null;
-
-    #[ORM\PrePersist]
-    public function prePersist(): void
+    public function __construct()
     {
         $now = new \DateTimeImmutable();
         $this->createdAt = $now;
         $this->updatedAt = $now;
-    }
-
-    #[ORM\PreUpdate]
-    public function preUpdate(): void
-    {
-        $this->updatedAt = new \DateTimeImmutable();
     }
 
     public function getId(): ?int
@@ -84,9 +73,13 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     public function setEmail(string $email): self
     {
-        $this->email = mb_strtolower($email);
-
+        $this->email = mb_strtolower(trim($email));
         return $this;
+    }
+
+    public function getUserIdentifier(): string
+    {
+        return $this->email !== '' ? $this->email : 'unknown@news.local';
     }
 
     /**
@@ -95,7 +88,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function getRoles(): array
     {
         $roles = $this->roles;
-        $roles[] = self::ROLE_USER;
+        $roles[] = 'ROLE_USER';
 
         return array_values(array_unique($roles));
     }
@@ -106,7 +99,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setRoles(array $roles): self
     {
         $this->roles = array_values(array_unique($roles));
-
         return $this;
     }
 
@@ -118,46 +110,11 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setPassword(string $password): self
     {
         $this->password = $password;
-
         return $this;
-    }
-
-    public function getUserIdentifier(): string
-    {
-        if ($this->email === '') {
-            throw new \LogicException('User email cannot be empty.');
-        }
-
-        return $this->email;
     }
 
     public function eraseCredentials(): void
     {
-        $this->plainPassword = null;
-    }
-
-    public function getFirstName(): ?string
-    {
-        return $this->firstName;
-    }
-
-    public function setFirstName(?string $firstName): self
-    {
-        $this->firstName = $firstName;
-
-        return $this;
-    }
-
-    public function getLastName(): ?string
-    {
-        return $this->lastName;
-    }
-
-    public function setLastName(?string $lastName): self
-    {
-        $this->lastName = $lastName;
-
-        return $this;
     }
 
     public function getDisplayName(): string
@@ -167,8 +124,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     public function setDisplayName(string $displayName): self
     {
-        $this->displayName = $displayName;
-
+        $this->displayName = trim($displayName);
         return $this;
     }
 
@@ -177,10 +133,31 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this->isActive;
     }
 
+    public function getFirstName(): string
+    {
+        return $this->firstName;
+    }
+
+    public function setFirstName(string $firstName): self
+    {
+        $this->firstName = trim($firstName);
+        return $this;
+    }
+
+    public function getLastName(): string
+    {
+        return $this->lastName;
+    }
+
+    public function setLastName(string $lastName): self
+    {
+        $this->lastName = trim($lastName);
+        return $this;
+    }
+
     public function setIsActive(bool $isActive): self
     {
         $this->isActive = $isActive;
-
         return $this;
     }
 
@@ -189,25 +166,20 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this->createdAt;
     }
 
+    public function setCreatedAt(\DateTimeImmutable $createdAt): self
+    {
+        $this->createdAt = $createdAt;
+        return $this;
+    }
+
     public function getUpdatedAt(): \DateTimeImmutable
     {
         return $this->updatedAt;
     }
 
-    public function getPlainPassword(): ?string
+    public function setUpdatedAt(\DateTimeImmutable $updatedAt): self
     {
-        return $this->plainPassword;
-    }
-
-    public function setPlainPassword(?string $plainPassword): self
-    {
-        $this->plainPassword = $plainPassword;
-
+        $this->updatedAt = $updatedAt;
         return $this;
-    }
-
-    public function __toString(): string
-    {
-        return $this->displayName !== '' ? $this->displayName : $this->email;
     }
 }

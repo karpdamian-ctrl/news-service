@@ -1,0 +1,196 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block admin_content %}
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <h1 class="h3 mb-0">{{ resource_label }}</h1>
+        {% if can_create %}
+            <a href="{{ path(routes.new) }}" class="btn btn-primary">Add new</a>
+        {% endif %}
+    </div>
+
+    {% for error in errors %}
+        <div class="alert alert-danger">{{ error }}</div>
+    {% endfor %}
+
+    <div class="card shadow-sm mb-3">
+        <div class="card-body">
+            {% set currentQuery = app.request.query.get('q')|default('') %}
+            <form method="get" action="{{ path(routes.index) }}" class="row g-2 align-items-center">
+                <div class="col-md-8 col-lg-6">
+                    <input
+                        type="search"
+                        name="q"
+                        class="form-control"
+                        placeholder="Search..."
+                        value="{{ currentQuery }}"
+                    >
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-primary">Search</button>
+                </div>
+                {% if currentQuery is not empty %}
+                    <div class="col-auto">
+                        <a href="{{ path(routes.index, app.request.query.all|merge({'q': null, 'page': 1})) }}" class="btn btn-outline-secondary">Clear</a>
+                    </div>
+                {% endif %}
+
+                {% if app.request.query.get('sort') %}
+                    <input type="hidden" name="sort" value="{{ app.request.query.get('sort') }}">
+                {% endif %}
+                {% if app.request.query.get('order') %}
+                    <input type="hidden" name="order" value="{{ app.request.query.get('order') }}">
+                {% endif %}
+                {% if app.request.query.get('per_page') %}
+                    <input type="hidden" name="per_page" value="{{ app.request.query.get('per_page') }}">
+                {% endif %}
+            </form>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover align-middle mb-0">
+                <thead>
+                <tr>
+                    {% for field in list_fields %}
+                        <th>
+                            {% set isSortable = field in sortable_fields %}
+                            {% set query = app.request.query.all %}
+                            {% set currentSort = meta.sort|default(app.request.query.get('sort')) %}
+                            {% set currentOrder = (meta.order|default(app.request.query.get('order')|default('desc')))|lower %}
+
+                            {% if isSortable %}
+                                {% set nextOrder = currentSort == field and currentOrder == 'asc' ? 'desc' : 'asc' %}
+                                <a
+                                    class="text-decoration-none text-reset d-inline-flex align-items-center gap-1"
+                                    href="{{ path(routes.index, query|merge({'sort': field, 'order': nextOrder, 'page': 1})) }}"
+                                >
+                                    <span>{{ field }}</span>
+                                    {% if currentSort == field %}
+                                        <span class="small text-muted">{{ currentOrder == 'asc' ? '▲' : '▼' }}</span>
+                                    {% endif %}
+                                </a>
+                            {% else %}
+                                {{ field }}
+                            {% endif %}
+                        </th>
+                    {% endfor %}
+                    {% if can_show or can_edit or can_delete %}
+                        <th style="width: 220px;">Actions</th>
+                    {% endif %}
+                </tr>
+                </thead>
+                <tbody>
+                {% for item in items %}
+                    <tr>
+                        {% for field in list_fields %}
+                            <td>
+                                {% set value = attribute(item, field)|default('') %}
+                                {% if field == 'roles' %}
+                                    {% set roles = value is iterable ? value : [] %}
+                                    {% if roles is empty %}
+                                        <span class="text-muted">-</span>
+                                    {% else %}
+                                        {% for role in roles %}
+                                            {% set roleLabel = role == 'ROLE_ADMIN' ? 'Admin' : (role == 'ROLE_REDACTOR' ? 'Redactor' : role) %}
+                                            <span class="badge text-bg-secondary me-1">{{ roleLabel }}</span>
+                                        {% endfor %}
+                                    {% endif %}
+                                {% elseif field == 'isActive' %}
+                                    {% if value %}
+                                        <span class="badge text-bg-success">&#10003; Active</span>
+                                    {% else %}
+                                        <span class="badge text-bg-danger">&times; Inactive</span>
+                                    {% endif %}
+                                {% elseif (field == 'updatedAt' or field == 'createdAt' or field == 'published_at' or field == 'inserted_at' or field == 'modified_at') and value is not empty %}
+                                    {{ value|date('Y-m-d H:i') }}
+                                {% elseif value is iterable and value is not same as(false) and value is not same as(null) %}
+                                    {{ value|json_encode }}
+                                {% else %}
+                                    {{ value }}
+                                {% endif %}
+                            </td>
+                        {% endfor %}
+                        {% if can_show or can_edit or can_delete %}
+                            <td>
+                                <div class="d-flex gap-2">
+                                    {% if can_show %}
+                                        <a href="{{ path(routes.show, {id: item.id}) }}" class="btn btn-sm btn-outline-secondary">Preview</a>
+                                    {% endif %}
+                                    {% if can_edit %}
+                                        <a href="{{ path(routes.edit, {id: item.id}) }}" class="btn btn-sm btn-outline-primary">Edit</a>
+                                    {% endif %}
+                                    {% if can_delete %}
+                                        <form method="post" action="{{ path(routes.delete, {id: item.id}) }}" onsubmit="return confirm('Delete item #{{ item.id }}?');">
+                                            <input type="hidden" name="_token" value="{{ csrf_token('delete_' ~ resource_key ~ '_' ~ item.id) }}">
+                                            <button class="btn btn-sm btn-outline-danger" type="submit">Delete</button>
+                                        </form>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        {% endif %}
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="{{ list_fields|length + (can_show or can_edit or can_delete ? 1 : 0) }}" class="text-center py-4 text-muted">No data</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {% if meta %}
+        {% set currentPage = meta.page|default(1) %}
+        {% set totalPages = meta.total_pages|default(1) %}
+        {% set totalCount = meta.total_count|default(0) %}
+
+        <div class="mt-3 d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <div class="text-muted small">
+                Page {{ currentPage }} / {{ totalPages }}, total: {{ totalCount }}
+            </div>
+
+            {% if totalPages > 1 %}
+                {% set query = app.request.query.all %}
+                {% set startPage = max(1, currentPage - 2) %}
+                {% set endPage = min(totalPages, currentPage + 2) %}
+
+                <nav aria-label="Pagination">
+                    <ul class="pagination pagination-sm mb-0">
+                        <li class="page-item {{ currentPage <= 1 ? 'disabled' : '' }}">
+                            <a class="page-link" href="{{ currentPage <= 1 ? '#' : path(routes.index, query|merge({'page': currentPage - 1})) }}">Prev</a>
+                        </li>
+
+                        {% if startPage > 1 %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ path(routes.index, query|merge({'page': 1})) }}">1</a>
+                            </li>
+                            {% if startPage > 2 %}
+                                <li class="page-item disabled"><span class="page-link">…</span></li>
+                            {% endif %}
+                        {% endif %}
+
+                        {% for p in startPage..endPage %}
+                            <li class="page-item {{ p == currentPage ? 'active' : '' }}">
+                                <a class="page-link" href="{{ p == currentPage ? '#' : path(routes.index, query|merge({'page': p})) }}">{{ p }}</a>
+                            </li>
+                        {% endfor %}
+
+                        {% if endPage < totalPages %}
+                            {% if endPage < totalPages - 1 %}
+                                <li class="page-item disabled"><span class="page-link">…</span></li>
+                            {% endif %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ path(routes.index, query|merge({'page': totalPages})) }}">{{ totalPages }}</a>
+                            </li>
+                        {% endif %}
+
+                        <li class="page-item {{ currentPage >= totalPages ? 'disabled' : '' }}">
+                            <a class="page-link" href="{{ currentPage >= totalPages ? '#' : path(routes.index, query|merge({'page': currentPage + 1})) }}">Next</a>
+                        </li>
+                    </ul>
+                </nav>
+            {% endif %}
+        </div>
+    {% endif %}
+{% endblock %}

@@ -19,6 +19,8 @@ defmodule ApiWeb.ConnCase do
 
   using do
     quote do
+      @moduletag :integration
+
       # The default endpoint for testing
       @endpoint ApiWeb.Endpoint
 

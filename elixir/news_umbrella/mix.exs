@@ -17,7 +17,7 @@ defmodule News.Umbrella.MixProject do
 
   def cli do
     [
-      preferred_envs: [precommit: :test]
+      preferred_envs: [precommit: :test, "test.integration": :test]
     ]
   end
 
@@ -55,6 +55,7 @@ defmodule News.Umbrella.MixProject do
     [
       # run `mix setup` in all child apps
       setup: ["cmd mix setup"],
+      "test.integration": ["do --app api test --only integration"],
       precommit: ["compile --warnings-as-errors", "deps.unlock --unused", "format", "test"]
     ]
   end

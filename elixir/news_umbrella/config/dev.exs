@@ -23,6 +23,7 @@ config :api, ApiWeb.Endpoint,
   http: [ip: {0, 0, 0, 0}, port: String.to_integer(System.get_env("PORT", "4000"))],
   check_origin: false,
   code_reloader: true,
+  reloadable_apps: [:api, :core, :feed_generator],
   debug_errors: true,
   secret_key_base: "W4Kv3AqEwbMJ6SrL8I8C8Jd9lr6GEfgrCIBZspqYYRKz0bg9b6ywz2pf/KSDv3YN",
   watchers: [
