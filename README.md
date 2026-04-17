@@ -183,7 +183,7 @@ Trade-off:
 ## API rate limit (Elixir)
 
 W API działa mechanizm rate limitu oparty o Redis:
-- limit: `35` zapytań na `60` sekund na klienta (IP / `x-forwarded-for`)
+- limit: `60` zapytań na `60` sekund na klienta (IP / `x-forwarded-for`)
 - po przekroczeniu API zwraca `429` + nagłówek `retry-after`
 - odpowiedź JSON: `error=rate_limited` i komunikat o przekroczeniu limitu
 - klucze Redis są trzymane pod prefixem `api_rate_limit:*` z TTL 60 sekund
