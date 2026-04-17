@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Api;
 
+use Psr\Log\LoggerInterface;
 use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
@@ -13,6 +14,7 @@ final class NewsApiClient
         private readonly HttpClientInterface $httpClient,
         private readonly string $baseUrl,
         private readonly string $token,
+        private readonly LoggerInterface $logger,
     ) {
     }
 
@@ -92,6 +94,17 @@ final class NewsApiClient
             $decoded = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
         } catch (\JsonException) {
             $decoded = ['error' => 'invalid_api_response', 'raw' => $raw];
+        }
+
+        if ($status === 429) {
+            $this->logger->warning('API rate limit reached', [
+                'method' => $method,
+                'url' => $url,
+                'status' => $status,
+                'error' => $decoded['error'] ?? null,
+                'message' => $decoded['message'] ?? null,
+                'retry_after_seconds' => $decoded['retry_after_seconds'] ?? null,
+            ]);
         }
 
         return ['status' => $status, 'data' => $decoded];

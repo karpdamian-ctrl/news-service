@@ -5,6 +5,9 @@ framework:
         scoped_clients:
             news_api.client:
                 base_uri: '%env(NEWS_API_BASE_URL)%'
+                timeout: 5
+                max_duration: 8
+                retry_failed: false
 
     # Note that the session will be started ONLY if you read or write from it.
     session: true

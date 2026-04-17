@@ -61,7 +61,7 @@ final class TagArticlesListingComponent extends ApiArticleComponent
         ]);
 
         if ($response['status'] < 200 || $response['status'] >= 300) {
-            $errors[] = 'Nie udało się pobrać tagu.';
+            $this->appendApiError($response, $errors, 'Nie udało się pobrać tagu.');
             return null;
         }
 

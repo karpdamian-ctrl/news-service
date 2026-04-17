@@ -376,6 +376,14 @@ final class ApiResourceService
      */
     private function extractErrors(array $data): array
     {
+        if (isset($data['message']) && is_string($data['message']) && trim($data['message']) !== '') {
+            return [trim($data['message'])];
+        }
+
+        if (($data['error'] ?? null) === 'rate_limited') {
+            return ['Przekroczono limit zapytań do API. Spróbuj ponownie za chwilę.'];
+        }
+
         if (isset($data['errors']) && is_array($data['errors'])) {
             $messages = [];
             foreach ($data['errors'] as $field => $messagesForField) {

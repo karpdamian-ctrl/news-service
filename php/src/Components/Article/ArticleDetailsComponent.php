@@ -39,7 +39,7 @@ final class ArticleDetailsComponent extends ApiArticleComponent
                 $docs = $rows;
             }
         } else {
-            $errors[] = $response['data']['error'] ?? 'Nie udało się pobrać artykułu.';
+            $this->appendApiError($response, $errors, 'Nie udało się pobrać artykułu.');
         }
 
         if (!isset($docs[0])) {

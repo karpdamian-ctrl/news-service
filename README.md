@@ -1,5 +1,20 @@
 # News Platform (Dev/Test)
 
+## O projekcie
+
+To jest projekt typu zabawa / playground.
+Nie musi mieć ścisłego sensu biznesowego - celem było praktyczne sprawdzenie i połączenie wielu narzędzi w jednym środowisku.
+
+Najciekawsze elementy wykorzystane w projekcie:
+- Elixir + Phoenix Umbrella (API + subapki)
+- Symfony (panel adminowy + frontend)
+- PostgreSQL (osobne bazy dla PHP i Elixira)
+- Redis (scheduler, rate limit)
+- RabbitMQ (kolejki i asynchroniczne przetwarzanie)
+- Elasticsearch + Kibana (wyszukiwanie i obserwowalność)
+- Filebeat (zbieranie i filtrowanie logów)
+- Docker Compose (spójne środowisko lokalne)
+
 Projekt portfolio oparty o mikroserwisy:
 - `symfony` (PHP panel adminowy działający przez Elixir API)
 - `phoenix` (Elixir/Phoenix umbrella)
@@ -8,6 +23,65 @@ Projekt portfolio oparty o mikroserwisy:
 - Redis + Redis Commander
 - RabbitMQ + RabbitMQ Management
 - Elasticsearch + Kibana + Filebeat (zbieranie logów kontenerów)
+
+## Schemat aplikacji
+
+```mermaid
+flowchart LR
+    U[Użytkownik / przeglądarka]
+
+    subgraph PHP["Symfony (php)"]
+      H[Frontend publiczny]
+      A[Panel admin]
+      UA[(PostgreSQL php_db<br/>users)]
+    end
+
+    subgraph ELX["Elixir Umbrella (phoenix)"]
+      API[API /api/v1]
+      CORE[Core domain + Repo]
+      AG[articles_generator]
+      RL[Rate limiter]
+      CR[Markdown -> HTML consumer]
+      EDB[(PostgreSQL elixir_db<br/>news data)]
+    end
+
+    subgraph INFRA["Infra"]
+      R[(Redis)]
+      Q[(RabbitMQ)]
+      ES[(Elasticsearch)]
+      KB[Kibana]
+      FB[Filebeat]
+    end
+
+    U --> H
+    U --> A
+
+    H -->|REST| API
+    A -->|REST CRUD| API
+    A --> UA
+
+    API --> CORE
+    CORE --> EDB
+
+    API --> RL
+    RL --> R
+
+    AG --> R
+    AG --> CORE
+
+    CORE -->|publish render job| Q
+    Q --> CR
+    CR --> CORE
+
+    CORE -->|index/search| ES
+    H -->|search endpoints| ES
+
+    API -->|logs| FB
+    H -->|logs| FB
+    A -->|logs| FB
+    FB --> ES
+    KB --> ES
+```
 
 ## Wymagania
 
@@ -94,10 +168,22 @@ Panel adminowy w Symfony wykonuje CRUD wyłącznie przez Elixir API (`/api/v1/*`
 Autoryzacja API to prosty token.
 Frontend użytkownika w Symfony pobiera dane list/hero/category/tag przez endpointy `*/search` (Elasticsearch), a strona pojedynczego artykułu (`/article/<slug>`) korzysta z endpointu bazodanowego `GET /api/v1/articles`.
 
+Użytkownicy są wyjątkiem:
+- konta panelowe (`users`) są utrzymywane po stronie Symfony/Doctrine (baza `php_db`)
+- dane newsowe (`articles`, `categories`, `tags`, `media`, `revisions`) są utrzymywane po stronie Elixira (baza `elixir_db`)
+
+Dlaczego to ma sens w tym projekcie:
+- Symfony odpowiada za panel i sesyjne logowanie użytkowników, więc lokalny model `User` upraszcza security i role.
+- Elixir pozostaje jednym źródłem prawdy dla domeny newsowej i API.
+- rozdział odpowiedzialności jest czytelny: IAM/admin login w PHP, content domain w Elixirze.
+
+Trade-off:
+- to jest architektura polyglot z dwoma bazami, więc wymaga pilnowania granic domenowych i braku cross-write między systemami.
+
 ## API rate limit (Elixir)
 
 W API działa mechanizm rate limitu oparty o Redis:
-- limit: `30` zapytań na `60` sekund na klienta (IP / `x-forwarded-for`)
+- limit: `35` zapytań na `60` sekund na klienta (IP / `x-forwarded-for`)
 - po przekroczeniu API zwraca `429` + nagłówek `retry-after`
 - odpowiedź JSON: `error=rate_limited` i komunikat o przekroczeniu limitu
 - klucze Redis są trzymane pod prefixem `api_rate_limit:*` z TTL 60 sekund

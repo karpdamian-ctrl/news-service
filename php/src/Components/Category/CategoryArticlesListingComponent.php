@@ -61,7 +61,7 @@ final class CategoryArticlesListingComponent extends ApiArticleComponent
         ]);
 
         if ($response['status'] < 200 || $response['status'] >= 300) {
-            $errors[] = 'Nie udało się pobrać kategorii.';
+            $this->appendApiError($response, $errors, 'Nie udało się pobrać kategorii.');
             return null;
         }
 

@@ -23,7 +23,7 @@ abstract class ApiArticleComponent
     {
         $response = $this->apiClient->list('articles/search', $params);
         if ($response['status'] < 200 || $response['status'] >= 300) {
-            $errors[] = 'Nie udało się pobrać artykułów z wyszukiwarki.';
+            $this->appendApiError($response, $errors, 'Nie udało się pobrać artykułów z wyszukiwarki.');
             return [];
         }
 
@@ -45,7 +45,7 @@ abstract class ApiArticleComponent
     {
         $response = $this->apiClient->list('media/search', ['per_page' => 100, 'sort' => 'id', 'order' => 'desc']);
         if ($response['status'] < 200 || $response['status'] >= 300) {
-            $errors[] = 'Nie udało się pobrać mediów.';
+            $this->appendApiError($response, $errors, 'Nie udało się pobrać mediów.');
             return [];
         }
 
@@ -271,7 +271,7 @@ abstract class ApiArticleComponent
         $response = $this->apiClient->list('categories', ['per_page' => 500, 'sort' => 'name', 'order' => 'asc']);
 
         if ($response['status'] < 200 || $response['status'] >= 300) {
-            $errors[] = 'Nie udało się pobrać kategorii.';
+            $this->appendApiError($response, $errors, 'Nie udało się pobrać kategorii.');
             return [];
         }
 
@@ -308,7 +308,7 @@ abstract class ApiArticleComponent
         $response = $this->apiClient->list('tags', ['per_page' => 500, 'sort' => 'name', 'order' => 'asc']);
 
         if ($response['status'] < 200 || $response['status'] >= 300) {
-            $errors[] = 'Nie udało się pobrać tagów.';
+            $this->appendApiError($response, $errors, 'Nie udało się pobrać tagów.');
             return [];
         }
 
@@ -368,5 +368,25 @@ abstract class ApiArticleComponent
         }
 
         return $refsFromIds;
+    }
+
+    /**
+     * @param array{status:int,data:array<string,mixed>} $response
+     * @param list<string> $errors
+     */
+    protected function appendApiError(array $response, array &$errors, string $fallback): void
+    {
+        $data = $response['data'] ?? [];
+
+        $message = null;
+        if (isset($data['message']) && is_string($data['message']) && trim($data['message']) !== '') {
+            $message = trim($data['message']);
+        } elseif (($data['error'] ?? null) === 'rate_limited') {
+            $message = 'Przekroczono limit zapytań do API. Spróbuj ponownie za chwilę.';
+        } elseif (isset($data['error']) && is_string($data['error']) && trim($data['error']) !== '') {
+            $message = trim($data['error']);
+        }
+
+        $errors[] = $message ?? $fallback;
     }
 }

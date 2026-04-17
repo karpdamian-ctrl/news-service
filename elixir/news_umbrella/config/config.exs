@@ -36,7 +36,7 @@ config :core, Core.RateLimiter,
   enabled: true,
   redis_name: Core.RateLimiter.Redis,
   key_prefix: "api_rate_limit",
-  limit: 30,
+  limit: 35,
   window_seconds: 60
 
 config :api,
