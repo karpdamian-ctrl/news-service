@@ -1,0 +1,32 @@
+{% set article = hero.article %}
+{% set image = article and article.image_url ? article.image_url : 'https://images.unsplash.com/photo-1495020689067-958852a7765e?auto=format&fit=crop&w=1600&q=80' %}
+
+<header class="hero-cover d-flex align-items-end p-4 p-lg-5 text-white mb-5" style="background-image: linear-gradient(125deg, rgba(10, 22, 41, 0.86), rgba(12, 35, 68, 0.56)), url('{{ image }}');">
+    <div class="hero-content">
+        <span class="badge text-bg-warning text-uppercase mb-3">Top Story</span>
+        <h1 class="display-5 fw-bold mb-3">
+            {% if article %}
+                <a href="{{ article.url }}" class="text-white text-decoration-none">{{ article.title }}</a>
+            {% else %}
+                Brak artykułu głównego
+            {% endif %}
+        </h1>
+        {% if article %}
+            <p class="lead mb-3">{{ article.description }}</p>
+            <p class="meta-line text-white-50 mb-4">
+                {{ article.author }} • {{ article.published_at ?: 'data nieznana' }} • {{ article.view_count }} wyświetleń
+            </p>
+            <div class="mb-3">
+                {% for category in article.category_links %}
+                    <a href="{{ category.url }}" class="meta-chip text-decoration-none">{{ category.name }}</a>
+                {% endfor %}
+                {% for tag in article.tag_links %}
+                    <a href="{{ tag.url }}" class="meta-chip tag-chip text-decoration-none">#{{ tag.name }}</a>
+                {% endfor %}
+            </div>
+        {% endif %}
+        {% if article %}
+            <a href="{{ article.url }}" class="btn btn-light fw-semibold">Czytaj cały artykuł</a>
+        {% endif %}
+    </div>
+</header>

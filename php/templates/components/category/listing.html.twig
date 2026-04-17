@@ -1,0 +1,41 @@
+{% set category = listing.category %}
+
+<section class="mb-4">
+    <h1 class="display-6 fw-bold mb-2">
+        {% if category %}
+            Kategoria: {{ category.name }}
+        {% else %}
+            Kategoria nie znaleziona
+        {% endif %}
+    </h1>
+    {% if category %}
+        <p class="text-secondary mb-0">Artykuły przypisane do kategorii „{{ category.name }}”.</p>
+    {% endif %}
+</section>
+
+<section class="row g-4">
+    {% for article in listing.items %}
+        <div class="col-12 col-lg-6">
+            <article class="card news-card h-100">
+                <div class="card-body">
+                    {% include 'components/shared/article-tile-content.html.twig' with {
+                        article: article,
+                        title_tag: 'h2',
+                        title_class: 'listing-title mb-2',
+                        image_link_class: 'd-block',
+                        image_class: 'card-img-top',
+                        image_style: 'height: 220px; object-fit: cover;',
+                        description_class: 'text-secondary mb-3',
+                        meta_class: 'meta-line mb-3'
+                    } only %}
+                </div>
+            </article>
+        </div>
+    {% else %}
+        {% if category %}
+            <div class="col-12">
+                <div class="alert alert-secondary mb-0">Brak artykułów dla tej kategorii.</div>
+            </div>
+        {% endif %}
+    {% endfor %}
+</section>

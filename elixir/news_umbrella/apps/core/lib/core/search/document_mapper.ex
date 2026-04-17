@@ -57,8 +57,10 @@ defmodule Core.Search.DocumentMapper do
       featured_image_id: item.featured_image_id,
       category_ids: Enum.map(categories, & &1.id),
       category_names: Enum.map(categories, & &1.name),
+      category_refs: Enum.map(categories, &"#{&1.id}|#{&1.slug}|#{&1.name}"),
       tag_ids: Enum.map(tags, & &1.id),
       tag_names: Enum.map(tags, & &1.name),
+      tag_refs: Enum.map(tags, &"#{&1.id}|#{&1.slug}|#{&1.name}"),
       inserted_at: datetime_to_iso(item.inserted_at),
       updated_at: datetime_to_iso(item.updated_at)
     }

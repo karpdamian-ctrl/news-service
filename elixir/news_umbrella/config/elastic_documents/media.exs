@@ -4,6 +4,9 @@ config :core, :elastic_documents,
   media: %{
     endpoint: "/api/v1/media",
     index: "media_v1",
+    search_fields: ["path^3", "alt_text^2", "caption", "uploaded_by", "mime_type"],
+    filterable_fields: ["id", "type", "mime_type", "uploaded_by"],
+    sortable_fields: ["id", "type", "size_bytes", "inserted_at"],
     source: {Core.News, :list_media},
     settings: %{index: %{number_of_shards: 1, number_of_replicas: 0}},
     mappings: %{

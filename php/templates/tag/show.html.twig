@@ -1,0 +1,123 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}
+    {% if components.listing.tag %}
+        #{{ components.listing.tag.name }} - {{ components.header.site_name }}
+    {% else %}
+        Tag - {{ components.header.site_name }}
+    {% endif %}
+{% endblock %}
+
+{% block stylesheets %}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --bg-main: #f3f5f9;
+            --ink: #10213a;
+            --muted: #5e6a80;
+            --accent: #b0102f;
+            --accent-dark: #7d001d;
+            --accent-soft: #fff0f3;
+            --border: #e2e8f3;
+            --footer-bg: #11223e;
+            --footer-ink: #c7d4ec;
+        }
+
+        body {
+            font-family: "Manrope", sans-serif;
+            background: linear-gradient(180deg, #ecf1fa 0%, #f3f5f9 220px, #f3f5f9 100%);
+            color: var(--ink);
+        }
+
+        .topbar {
+            border-bottom: 1px solid var(--border);
+            background: #fff;
+        }
+
+        .brand {
+            font-weight: 800;
+            letter-spacing: 0.02em;
+            color: var(--ink);
+            text-decoration: none;
+        }
+
+        .brand-dot {
+            color: var(--accent);
+        }
+
+        .top-nav-link {
+            color: var(--muted);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.92rem;
+        }
+
+        .top-nav-link:hover {
+            color: var(--ink);
+        }
+
+        .news-card {
+            border: 0;
+            border-radius: 0.9rem;
+            box-shadow: 0 10px 30px rgba(20, 44, 83, 0.08);
+        }
+
+        .meta-chip {
+            background: var(--accent-soft);
+            color: var(--accent-dark);
+            border: 1px solid rgba(176, 16, 47, 0.16);
+            border-radius: 999px;
+            padding: 0.2rem 0.55rem;
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-right: 0.35rem;
+            margin-bottom: 0.35rem;
+            display: inline-block;
+        }
+
+        .tag-chip {
+            background: #edf5ff;
+            color: #0f4f9e;
+            border: 1px solid rgba(15, 79, 158, 0.2);
+        }
+
+        .meta-line {
+            font-size: 0.82rem;
+            color: var(--muted);
+        }
+
+        .listing-title {
+            font-size: clamp(1.1rem, 1.7vw, 1.35rem);
+            line-height: 1.35;
+            font-weight: 800;
+        }
+
+        .site-footer {
+            margin-top: 3rem;
+            background: var(--footer-bg);
+            color: var(--footer-ink);
+            border-top: 3px solid var(--accent);
+        }
+    </style>
+{% endblock %}
+
+{% block body %}
+    {% include 'components/home/header.html.twig' with {header: components.header} only %}
+
+    <main class="container py-4 py-lg-5">
+        <a href="{{ path('app_home') }}" class="btn btn-outline-secondary btn-sm mb-3">&larr; Powrót do strony głównej</a>
+
+        {% if errors is not empty %}
+            <div class="alert alert-warning">
+                {{ errors|join(' ') }}
+            </div>
+        {% endif %}
+
+        {% include 'components/tag/listing.html.twig' with {listing: components.listing} only %}
+    </main>
+
+    {% include 'components/home/footer.html.twig' with {footer: components.footer} only %}
+{% endblock %}

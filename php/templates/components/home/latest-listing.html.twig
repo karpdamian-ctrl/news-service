@@ -1,0 +1,25 @@
+<div class="col-12 col-xl-6">
+    <article class="card news-card h-100">
+        <div class="card-body">
+            <div class="section-title">{{ listing.title }}</div>
+            <div class="listing-stack">
+                {% for article in listing.items %}
+                    <article class="listing-tile">
+                        {% include 'components/shared/article-tile-content.html.twig' with {
+                            article: article,
+                            title_tag: 'h3',
+                            title_class: 'listing-title mb-1',
+                            image_link_class: 'd-block mb-3',
+                            image_class: 'img-fluid rounded',
+                            image_style: 'max-height: 180px; width: 100%; object-fit: cover;',
+                            description_class: 'text-secondary mb-2',
+                            meta_class: 'meta-line mb-2'
+                        } only %}
+                    </article>
+                {% else %}
+                    <div class="text-secondary">Brak artykułów.</div>
+                {% endfor %}
+            </div>
+        </div>
+    </article>
+</div>

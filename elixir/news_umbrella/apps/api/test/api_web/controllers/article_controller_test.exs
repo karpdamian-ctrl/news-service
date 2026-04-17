@@ -236,6 +236,34 @@ defmodule ApiWeb.ArticleControllerTest do
       assert response(delete_conn, 204)
     end
 
+    test "increments view_count when article is opened", %{
+      conn: conn,
+      category: category,
+      tag: tag
+    } do
+      {:ok, article} =
+        News.create_article(%{
+          title: "Readable Story",
+          slug: "readable-story",
+          description: "desc",
+          content: "Long article content for view counter tests with enough characters.",
+          status: "published",
+          published_at: DateTime.utc_now() |> DateTime.truncate(:second),
+          author: "Reader",
+          view_count: 7,
+          category_ids: [category.id],
+          tag_ids: [tag.id]
+        })
+
+      increment_conn = post(conn, "/api/v1/articles/#{article.id}/view")
+      assert %{"data" => data} = json_response(increment_conn, 200)
+      assert data["view_count"] == 8
+
+      show_conn = get(conn, "/api/v1/articles/#{article.id}")
+      assert %{"data" => shown} = json_response(show_conn, 200)
+      assert shown["view_count"] == 8
+    end
+
     test "returns 422 when published article has no published_at", %{conn: conn} do
       {:ok, category} = News.create_category(%{name: "Publishing", slug: "publishing"})
       {:ok, tag} = News.create_tag(%{name: "Breaking", slug: "breaking"})

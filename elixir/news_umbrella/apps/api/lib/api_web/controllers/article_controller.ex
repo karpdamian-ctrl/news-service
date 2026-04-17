@@ -4,6 +4,7 @@ defmodule ApiWeb.ArticleController do
   alias ApiWeb.ControllerHelpers
   alias ApiWeb.NewsJSON
   alias Core.News
+  alias Core.Search.Searcher
 
   action_fallback ApiWeb.FallbackController
 
@@ -22,6 +23,15 @@ defmodule ApiWeb.ArticleController do
     end
   end
 
+  def search(conn, params) do
+    with {:ok, %{documents: documents, meta: meta}} <-
+           Searcher.search_documents(:articles, params) do
+      conn
+      |> put_status(:ok)
+      |> json(%{data: documents, meta: meta})
+    end
+  end
+
   def create(conn, params) do
     with {:ok, article} <- News.create_article(params) do
       conn |> put_status(:created) |> json(%{data: NewsJSON.article(article)})
@@ -32,6 +42,14 @@ defmodule ApiWeb.ArticleController do
     with {:ok, id} <- ControllerHelpers.parse_int_id(id),
          {:ok, article} <- News.get_article(id) |> ControllerHelpers.fetch_or_not_found(),
          {:ok, article} <- News.update_article(article, Map.delete(params, "id")) do
+      conn |> put_status(:ok) |> json(%{data: NewsJSON.article(article)})
+    end
+  end
+
+  def increment_view(conn, %{"id" => id}) do
+    with {:ok, id} <- ControllerHelpers.parse_int_id(id),
+         {:ok, article} <- News.get_article(id) |> ControllerHelpers.fetch_or_not_found(),
+         {:ok, article} <- News.increment_article_view_count(article) do
       conn |> put_status(:ok) |> json(%{data: NewsJSON.article(article)})
     end
   end

@@ -4,6 +4,7 @@ defmodule ApiWeb.ArticleRevisionController do
   alias ApiWeb.ControllerHelpers
   alias ApiWeb.NewsJSON
   alias Core.News
+  alias Core.Search.Searcher
 
   action_fallback ApiWeb.FallbackController
 
@@ -20,6 +21,15 @@ defmodule ApiWeb.ArticleRevisionController do
          {:ok, revision} <-
            News.get_article_revision(id) |> ControllerHelpers.fetch_or_not_found() do
       conn |> put_status(:ok) |> json(%{data: NewsJSON.article_revision(revision)})
+    end
+  end
+
+  def search(conn, params) do
+    with {:ok, %{documents: documents, meta: meta}} <-
+           Searcher.search_documents(:article_revisions, params) do
+      conn
+      |> put_status(:ok)
+      |> json(%{data: documents, meta: meta})
     end
   end
 end

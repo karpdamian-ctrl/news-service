@@ -37,6 +37,12 @@ defmodule ApiWeb.FallbackController do
     |> json(%{error: "bad_request"})
   end
 
+  def call(conn, {:error, :search_unavailable}) do
+    conn
+    |> put_status(:bad_gateway)
+    |> json(%{error: "search_unavailable"})
+  end
+
   defp translate_errors(changeset) do
     Ecto.Changeset.traverse_errors(changeset, fn {msg, opts} ->
       Regex.replace(~r"%{(\w+)}", msg, fn _, key ->

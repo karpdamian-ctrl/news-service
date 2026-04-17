@@ -213,6 +213,20 @@ defmodule Core.News do
     end
   end
 
+  def increment_article_view_count(%Article{} = article) do
+    query = from(a in Article, where: a.id == ^article.id)
+
+    case Repo.update_all(query, inc: [view_count: 1]) do
+      {1, _} ->
+        updated_article = get_article!(article.id)
+        publish({:upsert, :articles, updated_article})
+        {:ok, updated_article}
+
+      _ ->
+        {:error, :not_found}
+    end
+  end
+
   def delete_article(%Article{} = article) do
     revision_ids = article_revision_ids_for_article(article.id)
 

@@ -26,6 +26,14 @@ defmodule ApiWeb.Router do
     pipe_through :api
 
     scope "/v1" do
+      get "/categories/popular", CategoryController, :popular
+      get "/categories/search", CategoryController, :search
+      get "/tags/search", TagController, :search
+      get "/media/search", MediaController, :search
+      get "/articles/search", ArticleController, :search
+      get "/article-revisions/search", ArticleRevisionController, :search
+      post "/articles/:id/view", ArticleController, :increment_view
+
       resources "/categories", CategoryController, except: [:new, :edit]
       resources "/tags", TagController, except: [:new, :edit]
       resources "/media", MediaController, except: [:new, :edit]

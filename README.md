@@ -68,6 +68,9 @@ docker compose logs -f filebeat
 ## Adresy i panele
 
 - Symfony: http://localhost:8080
+- Symfony Frontend Home: http://localhost:8080/
+- Symfony Frontend Category: http://localhost:8080/category/<slug>
+- Symfony Frontend Tag: http://localhost:8080/tag/<slug>
 - Symfony login: http://localhost:8080/login
 - Symfony Admin Panel: http://localhost:8080/admin
 - Symfony Profiler: http://localhost:8080/_profiler/
@@ -89,6 +92,7 @@ Trwałość ustawień Kibany:
 Source of truth dla danych newsowych jest po stronie Elixira (`apps/core` + `Core.Repo`).
 Panel adminowy w Symfony wykonuje CRUD wyłącznie przez Elixir API (`/api/v1/*`) i nie używa encji Doctrine dla newsów.
 Autoryzacja API to prosty token.
+Frontend użytkownika w Symfony pobiera dane list/hero/category/tag przez endpointy `*/search` (Elasticsearch), a strona pojedynczego artykułu (`/article/<slug>`) korzysta z endpointu bazodanowego `GET /api/v1/articles`.
 
 ## Loginy / hasła
 
@@ -259,14 +263,21 @@ http://localhost:4000/api/v1
 Dostępne endpointy CRUD:
 - `GET/POST /api/v1/categories`
 - `GET/PUT/DELETE /api/v1/categories/:id`
+- `GET /api/v1/categories/search`
+- `GET /api/v1/categories/popular?limit=5` (top kategorie wg częstotliwości w indeksie `articles_v1`)
 - `GET/POST /api/v1/tags`
 - `GET/PUT/DELETE /api/v1/tags/:id`
+- `GET /api/v1/tags/search`
 - `GET/POST /api/v1/media`
 - `GET/PUT/DELETE /api/v1/media/:id`
+- `GET /api/v1/media/search`
 - `GET/POST /api/v1/articles`
 - `GET/PUT/DELETE /api/v1/articles/:id`
+- `POST /api/v1/articles/:id/view` (inkrementacja licznika wyświetleń)
+- `GET /api/v1/articles/search`
 - `GET/POST /api/v1/article-revisions`
 - `GET/PUT/DELETE /api/v1/article-revisions/:id`
+- `GET /api/v1/article-revisions/search`
 
 Autoryzacja:
 - nagłówek `Authorization: Bearer <token>` lub `x-api-token: <token>`
@@ -279,6 +290,14 @@ Standardowe parametry listowania (`GET` na kolekcjach):
 - `order` (`asc` lub `desc`)
 - `q` (wyszukiwanie tekstowe po polach danego zasobu)
 - `filter[field]=value` (filtrowanie po dozwolonych polach)
+
+Parametry dla endpointów `*/search` (Elasticsearch):
+- `q` (full-text query; gdy puste -> `match_all`)
+- `page` i `per_page` (paginacja; `per_page` max `100`)
+- `sort` i `order` (sortowanie po polach dozwolonych w definicji indeksu)
+- `filter[field]=value` (term/terms filters po polach dozwolonych)
+
+`/search` zwraca bezpośrednio dokumenty z Elasticsearch (`data` + `meta`), bez dodatkowego dociągania rekordów z Postgresa.
 
 Przykład:
 ```bash

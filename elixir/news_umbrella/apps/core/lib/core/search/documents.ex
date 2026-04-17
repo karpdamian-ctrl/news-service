@@ -57,6 +57,29 @@ defmodule Core.Search.Documents do
               "invalid source in elasticsearch definition for #{inspect(resource)}. Expected {Module, :function}"
     end
 
+    validate_string_list!(resource, definition, :search_fields)
+    validate_string_list!(resource, definition, :filterable_fields)
+    validate_string_list!(resource, definition, :sortable_fields)
+
     definition
+  end
+
+  defp validate_string_list!(resource, definition, key) do
+    case Map.get(definition, key) do
+      nil ->
+        :ok
+
+      value when is_list(value) ->
+        if Enum.all?(value, &is_binary/1) do
+          :ok
+        else
+          raise ArgumentError,
+                "invalid #{inspect(key)} in elasticsearch definition for #{inspect(resource)}. Expected list of strings"
+        end
+
+      _ ->
+        raise ArgumentError,
+              "invalid #{inspect(key)} in elasticsearch definition for #{inspect(resource)}. Expected list of strings"
+    end
   end
 end

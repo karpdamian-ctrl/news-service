@@ -34,3 +34,7 @@ config :phoenix_live_view,
 # Sort query params output of verified routes for robust url comparisons
 config :phoenix,
   sort_verified_routes_query_params: true
+
+# Disable async search indexing side-effects in test environment.
+# Integration/unit tests can override this per test when asserting events.
+config :core, :search_events_module, Core.Search.NoopEvents

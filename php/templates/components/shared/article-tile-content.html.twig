@@ -1,0 +1,37 @@
+{% set title_tag = title_tag|default('h3') %}
+{% set title_class = title_class|default('listing-title mb-1') %}
+{% set image_link_class = image_link_class|default('d-block mb-3') %}
+{% set image_class = image_class|default('img-fluid rounded') %}
+{% set image_style = image_style|default('max-height: 180px; width: 100%; object-fit: cover;') %}
+{% set description_class = description_class|default('text-secondary mb-2') %}
+{% set meta_class = meta_class|default('meta-line mb-2') %}
+{% set meta_text = meta_text|default(
+    article.author ~ ' • ' ~ article.view_count ~ ' wyświetleń • ' ~ (article.published_at ?: 'data nieznana')
+) %}
+
+{% if article.image_url %}
+    <a href="{{ article.url }}" class="{{ image_link_class }}">
+        <img
+            src="{{ article.image_url }}"
+            alt="{{ article.image_alt ?: article.title }}"
+            class="{{ image_class }}"
+            style="{{ image_style }}"
+        >
+    </a>
+{% endif %}
+
+<{{ title_tag }} class="{{ title_class }}">
+    <a href="{{ article.url }}" class="text-decoration-none text-dark">{{ article.title }}</a>
+</{{ title_tag }}>
+<p class="{{ description_class }}">{{ article.description }}</p>
+{% if meta_text is not empty %}
+    <p class="{{ meta_class }}">{{ meta_text }}</p>
+{% endif %}
+<div>
+    {% for category in article.category_links %}
+        <a href="{{ category.url }}" class="meta-chip text-decoration-none">{{ category.name }}</a>
+    {% endfor %}
+    {% for tagLink in article.tag_links %}
+        <a href="{{ tagLink.url }}" class="meta-chip tag-chip text-decoration-none">#{{ tagLink.name }}</a>
+    {% endfor %}
+</div>
