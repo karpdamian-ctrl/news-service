@@ -279,15 +279,12 @@ defmodule ArticlesGenerator.Scheduler do
   end
 
   defp generated_description(story) do
-    template =
-      Enum.random([
-        "Nowe dane: %s. Wskaźnik %s%%, zmiana %s%% i możliwe konsekwencje dla rynku.",
-        "Analiza dnia: %s. Odczyt %s%% oraz dynamika %s%% pokazują, gdzie może pójść rynek.",
-        "Szybkie podsumowanie: %s. Wynik %s%% i ruch o %s%% wpływają na decyzje operacyjne."
-      ])
-
-    :io_lib.format(template, [story.title, story.metric_value, story.delta])
-    |> IO.iodata_to_binary()
+    [
+      "Nowe dane: #{story.title}. Wskaźnik #{story.metric_value}%, zmiana #{story.delta}% i możliwe konsekwencje dla rynku.",
+      "Analiza dnia: #{story.title}. Odczyt #{story.metric_value}% oraz dynamika #{story.delta}% pokazują, gdzie może pójść rynek.",
+      "Szybkie podsumowanie: #{story.title}. Wynik #{story.metric_value}% i ruch o #{story.delta}% wpływają na decyzje operacyjne."
+    ]
+    |> Enum.random()
   end
 
   defp build_title(context) do
