@@ -2,6 +2,7 @@ defmodule Core.ContentRenderer.MarkdownProcessor do
   @moduledoc false
 
   alias Core.News
+  require Logger
 
   def process_payload(payload) when is_binary(payload) do
     case Jason.decode(payload) do
@@ -18,14 +19,25 @@ defmodule Core.ContentRenderer.MarkdownProcessor do
   def process_payload(_), do: {:error, :invalid_payload}
 
   def process_article(article_id) when is_integer(article_id) and article_id > 0 do
+    Logger.info("ARTICLE_RENDER_PROCESS_START #{inspect(%{article_id: article_id})}")
+
     case News.get_article(article_id) do
       nil ->
+        Logger.warning("ARTICLE_RENDER_PROCESS_SKIPPED #{inspect(%{article_id: article_id, reason: :article_not_found})}")
         {:error, :article_not_found}
 
       article ->
         with {:ok, content_html} <- render_markdown(article.content),
              {:ok, _updated_article} <- News.set_article_content_html(article_id, content_html) do
+          Logger.info("ARTICLE_RENDER_PROCESS_SUCCESS #{inspect(%{article_id: article_id})}")
           :ok
+        else
+          {:error, reason} ->
+            Logger.warning(
+              "ARTICLE_RENDER_PROCESS_FAILED #{inspect(%{article_id: article_id, reason: reason})}"
+            )
+
+            {:error, reason}
         end
     end
   end

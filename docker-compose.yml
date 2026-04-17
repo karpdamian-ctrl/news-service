@@ -46,6 +46,8 @@ services:
       HOME: /tmp
       MIX_HOME: /tmp/.mix
       HEX_HOME: /tmp/.hex
+      MIX_BUILD_PATH: /tmp/news_mix_cli
+      SERVER_MIX_BUILD_PATH: /tmp/news_mix_server
       POSTGRES_HOST: elixir_db
       POSTGRES_DB: news_elixir
       POSTGRES_DB_TEST: news_elixir_test

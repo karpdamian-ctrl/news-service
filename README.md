@@ -94,6 +94,22 @@ flowchart LR
 LOCAL_UID=$(id -u) LOCAL_GID=$(id -g) docker compose up -d --build --force-recreate
 ```
 
+### Pierwsze uruchomienie po czyszczeniu danych
+
+Po starcie kontenerów wykonaj inicjalizację w tej kolejności:
+
+1. Utwórz/reutwórz indeksy Elasticsearch na podstawie definicji (mapping + settings):
+```bash
+docker compose exec phoenix sh -lc 'cd /app && mix elastic.reset.all'
+```
+
+2. Załaduj seedy do bazy Elixira:
+```bash
+docker compose exec phoenix sh -lc 'cd /app/apps/core && mix run priv/repo/seeds.exs'
+```
+
+Seedy zapisują dane do PostgreSQL i jednocześnie publikują eventy, więc dokumenty są automatycznie indeksowane w Elasticsearch.
+
 ## Start (TEST / CI)
 
 ```bash
@@ -138,6 +154,12 @@ docker compose logs -f symfony
 docker compose logs -f phoenix
 docker compose logs -f filebeat
 ```
+
+Uwaga (Phoenix + `mix`):
+- kontener `phoenix` ma rozdzielone build path:
+  - serwer: `/tmp/news_mix_server`
+  - komendy uruchamiane przez `docker compose exec phoenix ...`: `/tmp/news_mix_cli`
+- dzięki temu ręczne `mix` (np. seedy, elastic tasks) nie rozwalają CodeReloadera i nie powodują błędu `compile.lock changed`.
 
 ## Adresy i panele
 
