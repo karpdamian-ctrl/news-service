@@ -13,6 +13,7 @@ defmodule ApiWeb.Router do
   pipeline :api do
     plug :accepts, ["json"]
     plug ApiWeb.Plugs.ApiAuditLog
+    plug ApiWeb.Plugs.ApiRateLimit
     plug ApiWeb.Plugs.ApiTokenAuth
   end
 

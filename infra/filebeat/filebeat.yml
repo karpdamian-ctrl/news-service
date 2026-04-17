@@ -31,6 +31,10 @@ processors:
             - regexp:
                 message: "USER_AUDIT"
             - regexp:
+                message: "ARTICLE_GENERATOR_"
+            - regexp:
+                message: "ARTICLE_RENDER_"
+            - regexp:
                 message: "(?i)\\[(warning|error|critical)\\]"
             - regexp:
                 message: "(?i)\\b(warning|error|critical|exception|panic|fatal)\\b"

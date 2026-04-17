@@ -103,6 +103,7 @@ abstract class ApiArticleComponent
             'url' => '/article/' . rawurlencode($this->toString($doc['slug'] ?? null) ?? ''),
             'description' => $this->toString($doc['description'] ?? null) ?? '',
             'content' => $this->toString($doc['content'] ?? null) ?? '',
+            'content_html' => $this->toString($doc['content_html'] ?? null) ?? '',
             'author' => $this->toString($doc['author'] ?? null) ?? 'Redakcja',
             'published_at' => $this->formatDate($this->toString($doc['published_at'] ?? null)),
             'view_count' => $this->toInt($doc['view_count'] ?? null) ?? 0,

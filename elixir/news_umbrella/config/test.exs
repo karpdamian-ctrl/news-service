@@ -38,3 +38,10 @@ config :phoenix,
 # Disable async search indexing side-effects in test environment.
 # Integration/unit tests can override this per test when asserting events.
 config :core, :search_events_module, Core.Search.NoopEvents
+config :core, :article_render_queue_publisher_module, Core.ContentRenderer.NoopQueuePublisher
+config :core, Core.ContentRenderer.QueueConsumer, enabled: false
+config :core, Core.RateLimiter, enabled: false
+config :api, rate_limiter_enabled: false
+
+# Disable background auto content generation in test environment.
+config :articles_generator, enabled: false

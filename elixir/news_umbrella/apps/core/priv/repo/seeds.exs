@@ -1,4 +1,5 @@
 alias Core.News
+alias Core.ContentRenderer.MarkdownProcessor
 alias Core.News.{Article, ArticleRevision, Category, Media, Tag}
 alias Core.Repo
 
@@ -294,6 +295,14 @@ articles =
     article
   end)
 
+rendered_html_count =
+  Enum.reduce(articles, 0, fn article, acc ->
+    case MarkdownProcessor.process_article(article.id) do
+      :ok -> acc + 1
+      _ -> acc
+    end
+  end)
+
 IO.puts(
-  "Seed completed: #{length(categories)} categories, #{length(tags)} tags, #{length(media_assets)} media, #{length(articles)} articles."
+  "Seed completed: #{length(categories)} categories, #{length(tags)} tags, #{length(media_assets)} media, #{length(articles)} articles, #{rendered_html_count} html renders."
 )

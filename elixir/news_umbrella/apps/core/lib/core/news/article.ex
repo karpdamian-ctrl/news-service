@@ -10,6 +10,7 @@ defmodule Core.News.Article do
     field(:slug, :string)
     field(:description, :string)
     field(:content, :string)
+    field(:content_html, :string)
     field(:status, :string, default: "draft")
     field(:published_at, :utc_datetime)
     field(:is_breaking, :boolean, default: false)

@@ -2,6 +2,7 @@ defmodule Core.News do
   @moduledoc false
 
   import Ecto.Query, warn: false
+  require Logger
   alias Core.Repo
   alias Ecto.Changeset
   alias Ecto.Multi
@@ -178,6 +179,7 @@ defmodule Core.News do
     |> maybe_preload_article()
     |> tap_ok(fn article ->
       publish({:upsert, :articles, article})
+      enqueue_article_content_render(article.id)
     end)
   end
 
@@ -196,6 +198,7 @@ defmodule Core.News do
           updated_article = Repo.preload(updated_article, @article_preloads)
           publish({:upsert, :article_revisions, revision})
           publish({:upsert, :articles, updated_article})
+          enqueue_article_content_render(updated_article.id)
           {:ok, updated_article}
 
         {:error, :article, article_changeset, _changes_so_far} ->
@@ -226,6 +229,25 @@ defmodule Core.News do
         {:error, :not_found}
     end
   end
+
+  def set_article_content_html(article_id, content_html)
+      when is_integer(article_id) and article_id > 0 and is_binary(content_html) do
+    case Repo.get(Article, article_id) do
+      nil ->
+        {:error, :not_found}
+
+      article ->
+        article
+        |> Changeset.change(content_html: content_html)
+        |> Repo.update()
+        |> maybe_preload_article()
+        |> tap_ok(fn updated_article ->
+          publish({:upsert, :articles, updated_article})
+        end)
+    end
+  end
+
+  def set_article_content_html(_article_id, _content_html), do: {:error, :invalid_arguments}
 
   def delete_article(%Article{} = article) do
     revision_ids = article_revision_ids_for_article(article.id)
@@ -471,6 +493,27 @@ defmodule Core.News do
   defp publish(event) do
     publisher = Application.get_env(:core, :search_events_module, Core.Search.Events)
     publisher.publish(event)
+  end
+
+  defp enqueue_article_content_render(article_id) do
+    publisher_module =
+      Application.get_env(
+        :core,
+        :article_render_queue_publisher_module,
+        Core.ContentRenderer.QueuePublisher
+      )
+
+    case publisher_module.publish_article(article_id) do
+      :ok ->
+        :ok
+
+      {:error, reason} ->
+        Logger.warning(
+          "ARTICLE_RENDER_ENQUEUE_FAILED #{inspect(%{article_id: article_id, reason: reason})}"
+        )
+
+        :ok
+    end
   end
 
   defp tap_ok({:ok, value}, fun) when is_function(fun, 1) do

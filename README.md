@@ -94,6 +94,60 @@ Panel adminowy w Symfony wykonuje CRUD wyłącznie przez Elixir API (`/api/v1/*`
 Autoryzacja API to prosty token.
 Frontend użytkownika w Symfony pobiera dane list/hero/category/tag przez endpointy `*/search` (Elasticsearch), a strona pojedynczego artykułu (`/article/<slug>`) korzysta z endpointu bazodanowego `GET /api/v1/articles`.
 
+## API rate limit (Elixir)
+
+W API działa mechanizm rate limitu oparty o Redis:
+- limit: `30` zapytań na `60` sekund na klienta (IP / `x-forwarded-for`)
+- po przekroczeniu API zwraca `429` + nagłówek `retry-after`
+- odpowiedź JSON: `error=rate_limited` i komunikat o przekroczeniu limitu
+- klucze Redis są trzymane pod prefixem `api_rate_limit:*` z TTL 60 sekund
+- przekroczenia limitu są logowane jako warning (`API_RATE_LIMIT_EXCEEDED`)
+
+## Generator artykułów (Elixir + Redis)
+
+W umbrelli działa osobna subapka `articles_generator`, uruchamiana razem z `phoenix`.
+Generator działa cyklicznie na `GenServer` i tworzy nowy artykuł w losowym odstępie czasu między 3 a 6 minut.
+
+Sprzężenie z Redisem:
+- harmonogram następnej publikacji jest trzymany w Redis pod kluczem `articles_generator:next_generation_at`
+- wartość klucza to unix timestamp (sekundy)
+- po starcie generator odczytuje ten klucz; jeśli go nie ma, ustawia nowy termin
+- po wygenerowaniu artykułu generator zapisuje kolejny termin do tego samego klucza
+
+Logi generatora:
+- `ARTICLE_GENERATOR_NEXT` - zaplanowano kolejny termin
+- `ARTICLE_GENERATOR_CREATED` - artykuł został wygenerowany
+- `ARTICLE_GENERATOR_SKIPPED` / `ARTICLE_GENERATOR_REDIS_ERROR` - pominięcie lub błąd Redis
+
+Szybka weryfikacja:
+```bash
+# podgląd logów generatora
+docker compose logs -f phoenix | rg "ARTICLE_GENERATOR|articles_generator"
+
+# odczyt najbliższego terminu z Redis
+docker compose exec redis redis-cli GET articles_generator:next_generation_at
+```
+
+## Render markdown -> HTML (Core + RabbitMQ)
+
+W `core` działa asynchroniczny pipeline renderowania treści artykułów:
+- po `create/update` artykułu publikowana jest wiadomość do kolejki RabbitMQ `news.article_markdown.render`
+- konsument `Core.ContentRenderer.QueueConsumer` odbiera zadania i renderuje markdown do HTML
+- wynik zapisywany jest w nowym polu `articles.content_html`
+- strona artykułu na froncie Symfony renderuje właśnie `content_html` (z fallbackiem do `content`, gdy HTML nie jest jeszcze gotowy)
+- podczas uruchamiania seedów `core` HTML jest też generowany od razu dla każdego seeded artykułu
+
+Dlaczego to ma sens:
+- zapis artykułu w API jest szybki (render nie blokuje requestu)
+- render można skalować niezależnie (więcej konsumentów)
+- łatwiej dodać kolejne etapy przetwarzania (sanityzacja, ekstrakcja snippetów, itp.)
+
+Konfiguracja:
+- `config/config.exs`
+  - `:article_render_queue_publisher_module`
+  - `Core.ContentRenderer.QueueConsumer` (`enabled`, `queue`, `reconnect_ms`)
+- w `test` konsument jest wyłączony i publisher jest `Noop`, więc testy nie wymagają RabbitMQ
+
 ## Loginy / hasła
 
 RabbitMQ Management:
@@ -156,6 +210,11 @@ docker compose exec phoenix sh -lc 'cd apps/core && mix ecto.migrate'
 Seedy `core`:
 ```bash
 docker compose exec phoenix sh -lc 'cd apps/core && mix run priv/repo/seeds.exs'
+```
+
+Wrzuć wszystkie artykuły do kolejki przegenerowania markdown -> HTML:
+```bash
+docker compose exec phoenix sh -lc 'cd apps/core && mix content.render.enqueue_all'
 ```
 
 Przeładowanie seedów `core` (drop + create + migrate + seeds):

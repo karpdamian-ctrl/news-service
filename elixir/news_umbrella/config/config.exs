@@ -25,6 +25,30 @@ config :core, :integrations,
   rabbitmq_url: System.get_env("RABBITMQ_URL", "amqp://news:news@localhost:5672"),
   elasticsearch_url: System.get_env("ELASTICSEARCH_URL", "http://localhost:9200")
 
+config :core, :article_render_queue_publisher_module, Core.ContentRenderer.QueuePublisher
+
+config :core, Core.ContentRenderer.QueueConsumer,
+  enabled: true,
+  queue: "news.article_markdown.render",
+  reconnect_ms: 5_000
+
+config :core, Core.RateLimiter,
+  enabled: true,
+  redis_name: Core.RateLimiter.Redis,
+  key_prefix: "api_rate_limit",
+  limit: 30,
+  window_seconds: 60
+
+config :api,
+  rate_limiter_enabled: true,
+  rate_limiter_backend: Core.RateLimiter
+
+config :articles_generator,
+  enabled: true,
+  redis_url: System.get_env("REDIS_URL", "redis://localhost:6379"),
+  tick_interval_ms: 30_000,
+  next_generation_key: "articles_generator:next_generation_at"
+
 # Configures the endpoint
 config :api, ApiWeb.Endpoint,
   url: [host: "localhost"],

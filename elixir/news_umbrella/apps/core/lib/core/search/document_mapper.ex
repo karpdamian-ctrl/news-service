@@ -49,6 +49,7 @@ defmodule Core.Search.DocumentMapper do
       slug: item.slug,
       description: item.description,
       content: item.content,
+      content_html: item.content_html,
       status: item.status,
       published_at: datetime_to_iso(item.published_at),
       is_breaking: item.is_breaking,

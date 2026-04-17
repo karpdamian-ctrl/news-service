@@ -11,15 +11,31 @@ defmodule Core.News.SearchSyncTest do
     end
   end
 
+  defmodule FakeRenderPublisher do
+    def publish_article(article_id) do
+      send(self(), {:render_event, {:article_id, article_id}})
+      :ok
+    end
+  end
+
   setup do
-    previous = Application.get_env(:core, :search_events_module)
+    previous_search = Application.get_env(:core, :search_events_module)
+    previous_render = Application.get_env(:core, :article_render_queue_publisher_module)
+
     Application.put_env(:core, :search_events_module, FakePublisher)
+    Application.put_env(:core, :article_render_queue_publisher_module, FakeRenderPublisher)
 
     on_exit(fn ->
-      if is_nil(previous) do
+      if is_nil(previous_search) do
         Application.delete_env(:core, :search_events_module)
       else
-        Application.put_env(:core, :search_events_module, previous)
+        Application.put_env(:core, :search_events_module, previous_search)
+      end
+
+      if is_nil(previous_render) do
+        Application.delete_env(:core, :article_render_queue_publisher_module)
+      else
+        Application.put_env(:core, :article_render_queue_publisher_module, previous_render)
       end
     end)
 
@@ -52,6 +68,8 @@ defmodule Core.News.SearchSyncTest do
     {:ok, tag} = create_tag("sync-article-tag")
     {:ok, media} = create_media("sync-article-media.jpg")
     {:ok, article} = create_article(category.id, tag.id, media.id, "sync-article")
+    assert_received {:render_event, {:article_id, article_id}}
+    assert article_id == article.id
 
     flush_events()
 
@@ -76,6 +94,7 @@ defmodule Core.News.SearchSyncTest do
     assert revision.changed_by == "Editor Name"
 
     assert_received {:search_event, {:upsert, :articles, %Article{id: ^updated_article_id}}}
+    assert_received {:render_event, {:article_id, ^updated_article_id}}
   end
 
   test "delete media publishes delete event and dependent reindex events" do

@@ -31,7 +31,11 @@ defmodule Core.MixProject do
     [
       {:ecto_sql, "~> 3.13"},
       {:postgrex, ">= 0.0.0"},
-      {:req, "~> 0.5"}
+      {:req, "~> 0.5"},
+      {:redix, "~> 1.5"},
+      {:amqp, "~> 4.0"},
+      {:earmark_parser, "~> 1.4"},
+      {:earmark, "~> 1.4"}
     ]
   end
 

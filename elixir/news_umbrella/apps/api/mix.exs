@@ -57,6 +57,7 @@ defmodule ApiWeb.MixProject do
       {:telemetry_poller, "~> 1.0"},
       {:gettext, "~> 1.0"},
       {:core, in_umbrella: true},
+      {:articles_generator, in_umbrella: true},
       {:jason, "~> 1.2"},
       {:bandit, "~> 1.5"}
     ]

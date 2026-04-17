@@ -2,7 +2,7 @@
 
 Umbrella zawiera trzy subapki:
 - `core` - encje, Ecto schemas, konteksty domenowe i `Core.Repo`
-- `feed_generator` - logika generowania/pobierania feedów
+- `articles_generator` - automatyczne generowanie artykułów (GenServer + Redis)
 - `api` - warstwa HTTP/Phoenix
 
 Uruchomienie z katalogu `elixir/news_umbrella`:
